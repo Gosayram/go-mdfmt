@@ -20,7 +20,7 @@ GOIMPORTS = $(GOPATH)/bin/goimports
 # Build flags
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 DATE ?= $(shell date -u '+%Y-%m-%d_%H:%M:%S')
-BUILT_BY ?= $(shell whoami)
+BUILT_BY ?= $(shell git remote get-url origin 2>/dev/null | sed -n 's/.*[:/]\([^/]*\)\/[^/]*\.git.*/\1/p' || git config user.name 2>/dev/null | tr ' ' '_' || unknown)
 
 # Linker flags for version information
 LDFLAGS=-ldflags "-X github.com/Gosayram/go-mdfmt/internal/version.Version=$(VERSION) \

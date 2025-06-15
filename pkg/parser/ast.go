@@ -80,8 +80,9 @@ func (n *List) String() string {
 
 // ListItem represents a list item node
 type ListItem struct {
-	Text   string
-	Marker string
+	Text     string
+	Marker   string
+	Children []Node // Support for nested lists and other elements
 }
 
 // Type returns the node type for ListItem nodes.

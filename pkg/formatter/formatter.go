@@ -2,6 +2,10 @@
 package formatter
 
 import (
+	"fmt"
+	"regexp"
+	"strings"
+
 	"github.com/Gosayram/go-mdfmt/pkg/config"
 	"github.com/Gosayram/go-mdfmt/pkg/parser"
 )
@@ -17,6 +21,20 @@ const (
 	CodeFormatterPriority = 70
 	// WhitespaceFormatterPriority defines the priority for whitespace formatting (lowest)
 	WhitespaceFormatterPriority = 10
+	// InlineFormatterPriority defines the priority for inline formatting
+	InlineFormatterPriority = 60
+
+	// AtxHeadingStyle represents ATX-style heading format (# ## ###)
+	AtxHeadingStyle = "atx"
+	// SetextHeadingStyle represents setext-style heading format (underlined with = or -)
+	SetextHeadingStyle = "setext"
+
+	// MinHeadingLevel defines the minimum allowed heading level
+	MinHeadingLevel = 1
+	// MaxHeadingLevel defines the maximum allowed heading level
+	MaxHeadingLevel = 6
+	// SetextMaxLevel defines the maximum level for setext-style headings
+	SetextMaxLevel = 2
 )
 
 // Formatter represents a markdown formatter
@@ -55,6 +73,7 @@ func (e *Engine) RegisterDefaults() {
 	e.Register(&ParagraphFormatter{})
 	e.Register(&ListFormatter{})
 	e.Register(&CodeBlockFormatter{})
+	e.Register(&InlineFormatter{})
 	e.Register(&WhitespaceFormatter{})
 }
 
@@ -125,7 +144,7 @@ func (f *HeadingFormatter) CanFormat(nodeType parser.NodeType) bool {
 	return nodeType == parser.NodeHeading
 }
 
-// Format formats heading nodes
+// Format applies heading formatting rules.
 func (f *HeadingFormatter) Format(node parser.Node, cfg *config.Config) error {
 	heading, ok := node.(*parser.Heading)
 	if !ok {
@@ -133,18 +152,32 @@ func (f *HeadingFormatter) Format(node parser.Node, cfg *config.Config) error {
 	}
 
 	// Apply heading style preferences
-	if cfg.Heading.Style == "atx" {
+	if cfg.Heading.Style == AtxHeadingStyle {
 		// Ensure ATX-style headers (#, ##, ###, etc.)
-		// Set the style on the heading
-		_ = heading // Use heading to avoid unused variable error
+		heading.Style = AtxHeadingStyle
+	} else if cfg.Heading.Style == SetextHeadingStyle {
+		// Use setext style for levels 1 and 2, ATX for others
+		if heading.Level <= SetextMaxLevel {
+			heading.Style = SetextHeadingStyle
+		} else {
+			heading.Style = AtxHeadingStyle
+		}
 	}
 
-	// Add heading level normalization logic if needed
+	// Apply heading level normalization if enabled
 	if cfg.Heading.NormalizeLevels {
-		// Normalize heading levels to prevent jumps
-		// Implementation would go here
-		_ = heading // Use heading to avoid unused variable error
+		// Ensure heading level doesn't exceed HTML limit
+		if heading.Level > MaxHeadingLevel {
+			heading.Level = MaxHeadingLevel
+		}
+		// Ensure heading level is at least minimum
+		if heading.Level < MinHeadingLevel {
+			heading.Level = MinHeadingLevel
+		}
 	}
+
+	// Clean up heading text (trim whitespace)
+	heading.Text = strings.TrimSpace(heading.Text)
 
 	return nil
 }
@@ -159,10 +192,72 @@ func (f *ParagraphFormatter) CanFormat(nodeType parser.NodeType) bool {
 	return nodeType == parser.NodeParagraph
 }
 
-// Format formats paragraph nodes
-func (f *ParagraphFormatter) Format(_ parser.Node, _ *config.Config) error {
-	// Implementation would go here
+// Format applies paragraph formatting rules with text reflow.
+func (f *ParagraphFormatter) Format(node parser.Node, cfg *config.Config) error {
+	paragraph, ok := node.(*parser.Paragraph)
+	if !ok {
+		return nil
+	}
+
+	// Apply text reflow if line width is configured
+	if cfg.LineWidth > 0 {
+		paragraph.Text = f.wrapText(paragraph.Text, cfg.LineWidth)
+	}
+
+	// Clean up excessive whitespace
+	paragraph.Text = strings.TrimSpace(paragraph.Text)
+	// Replace multiple spaces with single space
+	paragraph.Text = normalizeWhitespace(paragraph.Text)
+
 	return nil
+}
+
+// wrapText wraps text to the specified line width
+func (f *ParagraphFormatter) wrapText(text string, width int) string {
+	if width <= 0 {
+		return text
+	}
+
+	words := strings.Fields(text)
+	if len(words) == 0 {
+		return text
+	}
+
+	var lines []string
+	var currentLine strings.Builder
+
+	for i, word := range words {
+		// Check if adding this word would exceed the line width
+		if currentLine.Len() > 0 && currentLine.Len()+1+len(word) > width {
+			// Start a new line
+			lines = append(lines, currentLine.String())
+			currentLine.Reset()
+		}
+
+		if currentLine.Len() > 0 {
+			currentLine.WriteString(" ")
+		}
+		currentLine.WriteString(word)
+
+		// If this is the last word, add the current line
+		if i == len(words)-1 {
+			lines = append(lines, currentLine.String())
+		}
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+// normalizeWhitespace replaces multiple consecutive spaces with single spaces
+func normalizeWhitespace(text string) string {
+	// Replace multiple spaces/tabs with single space
+	lines := strings.Split(text, "\n")
+	for i, line := range lines {
+		// Replace multiple whitespace characters with single space
+		fields := strings.Fields(line)
+		lines[i] = strings.Join(fields, " ")
+	}
+	return strings.Join(lines, "\n")
 }
 
 // ListFormatter formats list nodes
@@ -175,20 +270,46 @@ func (f *ListFormatter) CanFormat(nodeType parser.NodeType) bool {
 	return nodeType == parser.NodeList || nodeType == parser.NodeListItem
 }
 
-// Format formats list nodes
+// Format applies list formatting rules.
 func (f *ListFormatter) Format(node parser.Node, cfg *config.Config) error {
 	switch n := node.(type) {
 	case *parser.List:
-		// Set consistent bullet style
+		// Set consistent bullet style for unordered lists
 		if !n.Ordered {
 			n.Marker = cfg.List.BulletStyle
+			// Apply the same marker to all items
+			for _, item := range n.Items {
+				item.Marker = cfg.List.BulletStyle
+			}
+		} else {
+			// For ordered lists, use configured number style
+			for i, item := range n.Items {
+				switch cfg.List.NumberStyle {
+				case ".":
+					item.Marker = fmt.Sprintf("%d.", i+1)
+				case ")":
+					item.Marker = fmt.Sprintf("%d)", i+1)
+				default:
+					item.Marker = fmt.Sprintf("%d.", i+1)
+				}
+			}
 		}
-		// TODO: Implement consistent indentation
+
+		// Apply consistent indentation if enabled
+		if cfg.List.ConsistentIndentation {
+			for _, item := range n.Items {
+				// Normalize list item text (trim and clean whitespace)
+				item.Text = strings.TrimSpace(item.Text)
+				item.Text = normalizeWhitespace(item.Text)
+			}
+		}
+
 	case *parser.ListItem:
-		// Format list item marker
-		// TODO: Implement parent-child relationship if needed
-		n.Marker = cfg.List.BulletStyle
+		// Individual list item formatting
+		n.Text = strings.TrimSpace(n.Text)
+		n.Text = normalizeWhitespace(n.Text)
 	}
+
 	return nil
 }
 
@@ -232,8 +353,143 @@ func (f *WhitespaceFormatter) CanFormat(_ parser.NodeType) bool {
 	return true // Whitespace formatter can format any node
 }
 
-// Format normalizes whitespace
-func (f *WhitespaceFormatter) Format(_ parser.Node, _ *config.Config) error {
-	// Implementation would go here
+// Format applies whitespace normalization rules.
+func (f *WhitespaceFormatter) Format(node parser.Node, cfg *config.Config) error {
+	// Apply whitespace rules based on node type
+	switch n := node.(type) {
+	case *parser.Document:
+		// Document-level whitespace normalization
+		f.normalizeDocumentWhitespace(n, cfg)
+	case *parser.Paragraph:
+		// Normalize paragraph whitespace
+		if cfg.Whitespace.TrimTrailingSpaces {
+			n.Text = f.trimTrailingSpaces(n.Text)
+		}
+	case *parser.Heading:
+		// Normalize heading whitespace
+		if cfg.Whitespace.TrimTrailingSpaces {
+			n.Text = strings.TrimSpace(n.Text)
+		}
+	case *parser.CodeBlock:
+		// For code blocks, be more careful with whitespace
+		if cfg.Whitespace.TrimTrailingSpaces {
+			// Only trim trailing spaces at the end of lines, preserve indentation
+			lines := strings.Split(n.Content, "\n")
+			for i, line := range lines {
+				lines[i] = strings.TrimRight(line, " \t")
+			}
+			n.Content = strings.Join(lines, "\n")
+		}
+	case *parser.Text:
+		// Normalize text node whitespace
+		if cfg.Whitespace.TrimTrailingSpaces {
+			n.Content = f.trimTrailingSpaces(n.Content)
+		}
+	}
+
 	return nil
+}
+
+// normalizeDocumentWhitespace handles document-level whitespace rules
+func (f *WhitespaceFormatter) normalizeDocumentWhitespace(_ *parser.Document, _ *config.Config) {
+	// This would be used for limiting excessive blank lines between elements
+	// For now, we'll handle this in the renderer
+}
+
+// trimTrailingSpaces removes trailing spaces from each line
+func (f *WhitespaceFormatter) trimTrailingSpaces(text string) string {
+	lines := strings.Split(text, "\n")
+	for i, line := range lines {
+		lines[i] = strings.TrimRight(line, " \t")
+	}
+	return strings.Join(lines, "\n")
+}
+
+// InlineFormatter handles inline elements like links, emphasis, and inline code
+type InlineFormatter struct {
+	BaseFormatter
+}
+
+// NewInlineFormatter creates a new inline formatter
+func NewInlineFormatter() *InlineFormatter {
+	return &InlineFormatter{
+		BaseFormatter: BaseFormatter{
+			name:     "inline",
+			priority: InlineFormatterPriority,
+		},
+	}
+}
+
+// CanFormat returns true if this formatter can handle text nodes (where inline elements are)
+func (f *InlineFormatter) CanFormat(nodeType parser.NodeType) bool {
+	return nodeType == parser.NodeText || nodeType == parser.NodeParagraph
+}
+
+// Format applies inline formatting rules
+func (f *InlineFormatter) Format(node parser.Node, _ *config.Config) error {
+	var text string
+
+	switch n := node.(type) {
+	case *parser.Text:
+		text = n.Content
+		text = f.normalizeInlineElements(text)
+		n.Content = text
+	case *parser.Paragraph:
+		text = n.Text
+		text = f.normalizeInlineElements(text)
+		n.Text = text
+	default:
+		return nil
+	}
+
+	return nil
+}
+
+// normalizeInlineElements cleans up inline markdown formatting
+func (f *InlineFormatter) normalizeInlineElements(text string) string {
+	// Normalize inline code backticks (ensure single backticks for simple inline code)
+	text = f.normalizeInlineCode(text)
+
+	// Normalize emphasis and strong formatting
+	text = f.normalizeEmphasis(text)
+
+	// Clean up link formatting
+	text = f.normalizeLinks(text)
+
+	return text
+}
+
+// normalizeInlineCode ensures consistent inline code formatting
+func (f *InlineFormatter) normalizeInlineCode(text string) string {
+	// Replace multiple backticks with single backticks where appropriate
+	// This is a simplified implementation
+
+	// Remove spaces around inline code
+	re := regexp.MustCompile("`\\s+([^`]+)\\s+`")
+	text = re.ReplaceAllString(text, "`$1`")
+
+	return text
+}
+
+// normalizeEmphasis ensures consistent emphasis formatting
+func (f *InlineFormatter) normalizeEmphasis(text string) string {
+	// Normalize emphasis to use asterisks consistently
+	// Convert _text_ to *text*
+	re := regexp.MustCompile(`\b_([^_]+)_\b`)
+	text = re.ReplaceAllString(text, "*$1*")
+
+	// Normalize strong emphasis **text** (keep as is, it's already correct)
+	return text
+}
+
+// normalizeLinks cleans up link formatting
+func (f *InlineFormatter) normalizeLinks(text string) string {
+	// Ensure proper spacing around links
+	// This is a basic implementation - could be enhanced
+
+	// Remove extra spaces in link text
+	re := regexp.MustCompile(`\[\s+([^\]]+)\s+\]`)
+	text = re.ReplaceAllString(text, "[$1]")
+
+	return text
 }

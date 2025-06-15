@@ -4,19 +4,22 @@ package version
 import (
 	"fmt"
 	"runtime"
+	"strings"
 )
 
 const (
 	// ShortCommitHashLength defines the length for shortened commit hashes
 	ShortCommitHashLength = 7
+	// UnknownValue represents unknown build information
+	UnknownValue = "unknown"
 )
 
 // Build-time variables set by linker flags
 var (
 	Version     = "dev"
-	Commit      = "unknown"
-	Date        = "unknown"
-	BuiltBy     = "unknown"
+	Commit      = UnknownValue
+	Date        = UnknownValue
+	BuiltBy     = UnknownValue
 	BuildNumber = "0"
 )
 
@@ -28,22 +31,40 @@ func GetVersion() string {
 	return Version
 }
 
-// GetFullVersionInfo returns detailed version information
+// GetFullVersionInfo returns detailed version information in modern format
 func GetFullVersionInfo() string {
-	return fmt.Sprintf(`go-mdfmt version %s
-Build commit: %s
-Build date: %s
-Built by: %s
-Go version: %s
-OS/Arch: %s/%s`,
-		GetVersion(),
-		Commit,
-		Date,
-		BuiltBy,
-		runtime.Version(),
-		runtime.GOOS,
-		runtime.GOARCH,
-	)
+	var parts []string
+
+	// Main version line
+	versionLine := fmt.Sprintf("mdfmt %s", GetVersion())
+	if Commit != UnknownValue && Commit != "" {
+		shortCommit := Commit
+		if len(Commit) > ShortCommitHashLength {
+			shortCommit = Commit[:ShortCommitHashLength]
+		}
+		versionLine += fmt.Sprintf(" (%s)", shortCommit)
+	}
+	parts = append(parts, versionLine)
+
+	// Build info line
+	var buildInfo []string
+	if Date != UnknownValue && Date != "" {
+		// Format date more nicely
+		formattedDate := strings.ReplaceAll(Date, "_", " ")
+		buildInfo = append(buildInfo, fmt.Sprintf("built %s", formattedDate))
+	}
+	if BuiltBy != UnknownValue && BuiltBy != "" {
+		buildInfo = append(buildInfo, fmt.Sprintf("by %s", BuiltBy))
+	}
+	buildInfo = append(buildInfo,
+		fmt.Sprintf("with %s", runtime.Version()),
+		fmt.Sprintf("for %s/%s", runtime.GOOS, runtime.GOARCH))
+
+	if len(buildInfo) > 0 {
+		parts = append(parts, strings.Join(buildInfo, " "))
+	}
+
+	return strings.Join(parts, "\n")
 }
 
 // BuildInfo contains build information

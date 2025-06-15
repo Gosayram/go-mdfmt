@@ -56,3 +56,24 @@ debug.test
 
 # Example files
 .mdfmt.example.yaml
+
+# MDFMT files
+.mdfmt.yaml
+
+# Node modules
+node_modules/
+
+# Json files
+*.json
+
+# Prettier config files
+.prettierrc
+
+# Prettier files
+.prettierrc.json
+
+# Prettier ignore files
+.prettierignore
+
+# Prettier ignore files
+.prettierignore

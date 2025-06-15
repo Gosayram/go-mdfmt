@@ -5,10 +5,14 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/Gosayram/go-mdfmt/internal/version"
 	"github.com/Gosayram/go-mdfmt/pkg/config"
+	"github.com/Gosayram/go-mdfmt/pkg/formatter"
+	"github.com/Gosayram/go-mdfmt/pkg/parser"
 	"github.com/Gosayram/go-mdfmt/pkg/processor"
+	"github.com/Gosayram/go-mdfmt/pkg/renderer"
 )
 
 const (
@@ -186,47 +190,119 @@ func processFiles(paths []string, cfg *config.Config) error {
 }
 
 // processFile processes a single file
-func processFile(file processor.FileInfo, _ *config.Config, args *ProcessingArgs) (bool, error) {
+func processFile(file processor.FileInfo, cfg *config.Config, args *ProcessingArgs) (bool, error) {
 	content, err := os.ReadFile(file.Path)
 	if err != nil {
 		return false, fmt.Errorf("failed to read file: %w", err)
 	}
 
-	// For now, just return the content unchanged
-	// In a real implementation, this would parse and format the markdown
-	formatted := string(content)
+	formatted, err := formatMarkdownContent(content, cfg)
+	if err != nil {
+		return false, err
+	}
 
-	// Check if content would change
-	changed := string(content) != formatted
+	changed := hasContentChanged(content, formatted)
 
-	switch {
-	case args.write:
-		if changed {
-			if err := os.WriteFile(file.Path, []byte(formatted), OutputFilePermissions); err != nil {
-				return false, fmt.Errorf("failed to write file: %w", err)
-			}
-			if args.verbose {
-				fmt.Printf("Formatted: %s\n", file.Path)
-			}
-		}
-	case args.check:
-		if changed && args.verbose {
-			fmt.Printf("would reformat %s\n", file.Path)
-		}
-	case args.list:
-		if changed {
-			fmt.Println(file.Path)
-		}
-	case args.diff:
-		if changed {
-			// Show diff (simplified)
-			fmt.Printf("--- %s\n+++ %s\n", file.Path, file.Path)
-			// In a real implementation, show actual diff
-		}
-	default:
-		// Write to stdout
-		fmt.Print(formatted)
+	if args.verbose && changed {
+		fmt.Printf("File %s will be reformatted\n", file.Path)
+	}
+
+	if err := handleFileOutput(file.Path, formatted, changed, args); err != nil {
+		return false, err
 	}
 
 	return changed, nil
+}
+
+// formatMarkdownContent processes markdown content through parse -> format -> render pipeline
+func formatMarkdownContent(content []byte, cfg *config.Config) (string, error) {
+	p := parser.DefaultParser()
+	doc, err := p.Parse(content)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse markdown: %w", err)
+	}
+
+	engine := formatter.New()
+	engine.RegisterDefaults()
+
+	if formatErr := engine.Format(doc, cfg); formatErr != nil {
+		return "", fmt.Errorf("failed to format document: %w", formatErr)
+	}
+
+	mdRenderer := renderer.New()
+	formatted, err := mdRenderer.Render(doc, cfg)
+	if err != nil {
+		return "", fmt.Errorf("failed to render document: %w", err)
+	}
+
+	return formatted, nil
+}
+
+// hasContentChanged checks if the content has been modified after formatting
+func hasContentChanged(original []byte, formatted string) bool {
+	originalContent := strings.TrimSpace(string(original))
+	formattedContent := strings.TrimSpace(formatted)
+	return originalContent != formattedContent
+}
+
+// handleFileOutput handles different output modes based on processing arguments
+func handleFileOutput(filePath, formatted string, changed bool, args *ProcessingArgs) error {
+	switch {
+	case args.write:
+		return handleWriteMode(filePath, formatted, changed, args)
+	case args.check:
+		return handleCheckMode(filePath, changed, args)
+	case args.list:
+		return handleListMode(filePath, changed)
+	case args.diff:
+		return handleDiffMode(filePath, changed)
+	default:
+		return handleStdoutMode(formatted)
+	}
+}
+
+// handleWriteMode writes formatted content back to file
+func handleWriteMode(filePath, formatted string, changed bool, args *ProcessingArgs) error {
+	if changed {
+		if err := os.WriteFile(filePath, []byte(formatted), OutputFilePermissions); err != nil {
+			return fmt.Errorf("failed to write file: %w", err)
+		}
+		if args.verbose {
+			fmt.Printf("Formatted: %s\n", filePath)
+		}
+	} else if args.verbose {
+		fmt.Printf("Already formatted: %s\n", filePath)
+	}
+	return nil
+}
+
+// handleCheckMode handles check mode output
+func handleCheckMode(filePath string, changed bool, args *ProcessingArgs) error {
+	if changed && args.verbose {
+		fmt.Printf("would reformat %s\n", filePath)
+	}
+	return nil
+}
+
+// handleListMode handles list mode output
+func handleListMode(filePath string, changed bool) error {
+	if changed {
+		fmt.Println(filePath)
+	}
+	return nil
+}
+
+// handleDiffMode handles diff mode output
+func handleDiffMode(filePath string, changed bool) error {
+	if changed {
+		fmt.Printf("--- %s\n+++ %s\n", filePath, filePath)
+		fmt.Println("File would be reformatted")
+	}
+	return nil
+}
+
+// handleStdoutMode writes formatted content to stdout
+func handleStdoutMode(formatted string) error {
+	fmt.Print(formatted)
+	return nil
 }

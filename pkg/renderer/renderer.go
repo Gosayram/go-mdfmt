@@ -33,7 +33,7 @@ func New() *MarkdownRenderer {
 	return &MarkdownRenderer{}
 }
 
-// Render renders the AST to markdown string
+// Render renders the AST to markdown string with whitespace normalization.
 func (r *MarkdownRenderer) Render(doc *parser.Document, cfg *config.Config) (string, error) {
 	r.output.Reset()
 	r.config = cfg
@@ -44,7 +44,10 @@ func (r *MarkdownRenderer) Render(doc *parser.Document, cfg *config.Config) (str
 
 	result := r.output.String()
 
-	// Apply final whitespace normalization
+	// Apply document-level whitespace rules
+	result = r.normalizeBlankLines(result, cfg.Whitespace.MaxBlankLines)
+
+	// Ensure final newline if configured
 	if cfg.Whitespace.EnsureFinalNewline && !strings.HasSuffix(result, "\n") {
 		result += "\n"
 	}
@@ -156,7 +159,11 @@ func (r *MarkdownRenderer) renderList(list *parser.List, depth int) error {
 
 // renderListItem renders a list item node
 func (r *MarkdownRenderer) renderListItem(item *parser.ListItem, depth int) error {
-	indent := strings.Repeat("  ", depth)
+	// Use proper indentation for nested lists only (depth > 1)
+	indent := ""
+	if depth > 1 {
+		indent = strings.Repeat("  ", depth-1)
+	}
 
 	// Determine marker
 	marker := item.Marker
@@ -168,6 +175,16 @@ func (r *MarkdownRenderer) renderListItem(item *parser.ListItem, depth int) erro
 	r.output.WriteString(marker)
 	r.output.WriteString(" ")
 	r.output.WriteString(item.Text)
+
+	// Render nested elements
+	if len(item.Children) > 0 {
+		r.output.WriteString("\n")
+		for _, child := range item.Children {
+			if err := r.renderNode(child, depth); err != nil {
+				return err
+			}
+		}
+	}
 
 	return nil
 }
@@ -251,4 +268,32 @@ func (r *MarkdownRenderer) wrapText(text string, width int) string {
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+// normalizeBlankLines limits consecutive blank lines to the configured maximum
+func (r *MarkdownRenderer) normalizeBlankLines(text string, maxBlankLines int) string {
+	if maxBlankLines < 0 {
+		return text
+	}
+
+	lines := strings.Split(text, "\n")
+	var result []string
+	consecutiveEmpty := 0
+
+	for _, line := range lines {
+		isEmpty := strings.TrimSpace(line) == ""
+
+		if isEmpty {
+			consecutiveEmpty++
+			// Only add empty line if we haven't exceeded the limit
+			if consecutiveEmpty <= maxBlankLines {
+				result = append(result, line)
+			}
+		} else {
+			consecutiveEmpty = 0
+			result = append(result, line)
+		}
+	}
+
+	return strings.Join(result, "\n")
 }
