@@ -355,7 +355,7 @@ Final paragraph with some text.
 func BenchmarkGoldmarkParser_ParseLargeDocument(b *testing.B) {
 	parser := NewGoldmarkParser()
 
-	// Generate a large document
+	// Generate a large document (back to original size)
 	var content strings.Builder
 	content.WriteString("# Large Document\n\n")
 
@@ -375,6 +375,60 @@ func BenchmarkGoldmarkParser_ParseLargeDocument(b *testing.B) {
 			content.WriteString("    fmt.Println(\"Example code\")\n")
 			content.WriteString("}\n")
 			content.WriteString("```\n\n")
+		}
+	}
+
+	contentBytes := []byte(content.String())
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := parser.Parse(contentBytes)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkGoldmarkParser_ParseHugeDocument(b *testing.B) {
+	parser := NewGoldmarkParser()
+
+	// Generate an even larger document to stress test
+	var content strings.Builder
+	content.WriteString("# Huge Document\n\n")
+
+	for i := 0; i < 500; i++ {
+		content.WriteString(fmt.Sprintf("## Section %d\n\n", i+1))
+		content.WriteString("This is a paragraph with **bold**, *italic*, and `code` text. ")
+		content.WriteString("It also contains [links](https://example.com) and other inline elements.\n\n")
+
+		content.WriteString("### Subsection A\n\n")
+		for j := 0; j < 15; j++ {
+			content.WriteString(fmt.Sprintf("- List item %d with detailed descriptive text and more content\n", j+1))
+		}
+		content.WriteString("\n")
+
+		content.WriteString("### Subsection B\n\n")
+		for j := 0; j < 10; j++ {
+			content.WriteString(fmt.Sprintf("%d. Ordered list item %d\n", j+1, j+1))
+		}
+		content.WriteString("\n")
+
+		if i%20 == 0 {
+			content.WriteString("```javascript\n")
+			content.WriteString("function complexExample() {\n")
+			content.WriteString("    const data = {\n")
+			content.WriteString("        name: 'test',\n")
+			content.WriteString("        value: 42\n")
+			content.WriteString("    };\n")
+			content.WriteString("    return data;\n")
+			content.WriteString("}\n")
+			content.WriteString("```\n\n")
+		}
+
+		if i%50 == 0 {
+			content.WriteString("> This is a blockquote with multiple lines\n")
+			content.WriteString("> that spans several lines and contains\n")
+			content.WriteString("> important information.\n\n")
 		}
 	}
 

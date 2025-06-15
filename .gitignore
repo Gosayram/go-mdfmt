@@ -54,6 +54,9 @@ debug.test
 # Log files
 *.log 
 
+# Prof files
+*.prof
+
 # Example files
 .mdfmt.example.yaml
 

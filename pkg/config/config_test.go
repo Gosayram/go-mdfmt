@@ -261,6 +261,7 @@ func BenchmarkConfig_LoadFromFile(b *testing.B) {
 	}
 	defer os.Remove(tmpfile.Name())
 
+	// Full config content to test real performance
 	configContent := `line_width: 80
 heading:
   style: "atx"
@@ -278,7 +279,7 @@ whitespace:
   ensure_final_newline: true
 files:
   extensions: [".md", ".markdown", ".mdown"]
-  ignore_patterns: ["node_modules/**", ".git/**", "vendor/**"]
+  ignore_patterns: ["node_modules/**", ".git/**", "vendor/**", "build/**", "dist/**"]
 `
 
 	err = os.WriteFile(tmpfile.Name(), []byte(configContent), 0644)
@@ -293,5 +294,60 @@ files:
 		if err != nil {
 			b.Fatal(err)
 		}
+	}
+}
+
+func BenchmarkConfig_MultipleOperations(b *testing.B) {
+	// Create temporary config file
+	tmpfile, err := os.CreateTemp("", "config-*.yaml")
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer os.Remove(tmpfile.Name())
+
+	configContent := `line_width: 120
+heading:
+  style: "setext"
+  normalize_levels: false
+list:
+  bullet_style: "*"
+  number_style: ")"
+  consistent_indentation: false
+code:
+  fence_style: "~~~"
+  language_detection: false
+whitespace:
+  max_blank_lines: 3
+  trim_trailing_spaces: false
+  ensure_final_newline: false
+files:
+  extensions: [".md", ".markdown", ".mdown", ".mkd"]
+  ignore_patterns: ["node_modules/**", ".git/**", "vendor/**", "tmp/**", "cache/**"]
+`
+
+	err = os.WriteFile(tmpfile.Name(), []byte(configContent), 0644)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		// Test full cycle: create, load, validate, check files
+		cfg := Default()
+		err := cfg.LoadFromFile(tmpfile.Name())
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		err = cfg.Validate()
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		// Test file operations
+		_ = cfg.IsMarkdownFile("test.md")
+		_ = cfg.IsMarkdownFile("test.txt")
+		_ = cfg.ShouldIgnore("node_modules/test.md")
+		_ = cfg.ShouldIgnore("docs/test.md")
 	}
 }

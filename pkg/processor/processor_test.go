@@ -2,6 +2,7 @@ package processor
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -272,21 +273,27 @@ func BenchmarkFileProcessor_FindFiles(b *testing.B) {
 	// Create temporary directory structure
 	tempDir := b.TempDir()
 
-	// Create test files
+	// Create more test files to simulate real project
 	testFiles := []string{
 		"README.md",
 		"docs/guide.md",
 		"docs/api.markdown",
+		"docs/tutorial.md",
+		"docs/examples/basic.md",
+		"docs/examples/advanced.md",
+		"src/README.md",
 		"test.txt",
 		"script.js",
 		"nested/deep/file.md",
+		"nested/deep/another.markdown",
+		"project/docs/spec.md",
 	}
 
 	for _, file := range testFiles {
 		fullPath := filepath.Join(tempDir, file)
 		dir := filepath.Dir(fullPath)
 		os.MkdirAll(dir, 0755)
-		os.WriteFile(fullPath, []byte("# Test"), 0644)
+		os.WriteFile(fullPath, []byte("# Test\n\nContent with more text"), 0644)
 	}
 
 	b.ResetTimer()
@@ -298,43 +305,78 @@ func BenchmarkFileProcessor_FindFiles(b *testing.B) {
 	}
 }
 
-func BenchmarkFileProcessor_IsMarkdownFile(b *testing.B) {
+func BenchmarkFileProcessor_FindFilesLargeProject(b *testing.B) {
 	cfg := config.Default()
 	processor := NewFileProcessor(cfg, false)
-	testFiles := []string{
-		"README.md",
-		"doc.markdown",
-		"file.mdown",
-		"test.txt",
-		"script.js",
-		"style.css",
-		"config.yaml",
-		"data.json",
+
+	// Create temporary directory structure
+	tempDir := b.TempDir()
+
+	// Simulate a large project with many files
+	for i := 0; i < 50; i++ {
+		for j := 0; j < 10; j++ {
+			file := fmt.Sprintf("module%d/docs/file%d.md", i, j)
+			fullPath := filepath.Join(tempDir, file)
+			dir := filepath.Dir(fullPath)
+			os.MkdirAll(dir, 0755)
+			content := fmt.Sprintf("# Module %d File %d\n\nContent here", i, j)
+			os.WriteFile(fullPath, []byte(content), 0644)
+		}
+	}
+
+	// Add some non-markdown files
+	for i := 0; i < 100; i++ {
+		file := fmt.Sprintf("src/file%d.go", i)
+		fullPath := filepath.Join(tempDir, file)
+		dir := filepath.Dir(fullPath)
+		os.MkdirAll(dir, 0755)
+		os.WriteFile(fullPath, []byte("package main"), 0644)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		for _, file := range testFiles {
-			processor.isMarkdownFile(file)
+		_, err := processor.FindFiles([]string{tempDir})
+		if err != nil {
+			b.Fatal(err)
 		}
 	}
 }
 
-func BenchmarkFileProcessor_ReadWriteFile(b *testing.B) {
+func BenchmarkFileProcessor_FileOperations(b *testing.B) {
 	cfg := config.Default()
 	processor := NewFileProcessor(cfg, false)
 
-	content := []byte(`# Benchmark Test
+	// Larger, more realistic markdown content
+	content := []byte(`# Test Document
 
-This is test content for benchmarking file operations.
+This is a test paragraph with some **bold** and *italic* text.
 
-## Section
+## Section 1
 
-- Item 1
-- Item 2
-- Item 3
+- Item 1 with detailed description
+- Item 2 with more content
+- Item 3 with even more text
 
-Final paragraph with some text.
+### Subsection
+
+1. Ordered item 1
+2. Ordered item 2
+3. Ordered item 3
+
+## Section 2
+
+` + "```go\n" + `func example() {
+    fmt.Println("Hello, world!")
+    return true
+}
+` + "```" + `
+
+> This is a blockquote with important information
+> that spans multiple lines.
+
+## Final Section
+
+Final paragraph with [link](https://example.com) and more text.
 `)
 
 	b.ResetTimer()
@@ -345,7 +387,7 @@ Final paragraph with some text.
 			b.Fatal(err)
 		}
 
-		// Write and read
+		// Test file operations
 		err = processor.writeFile(tmpfile.Name(), content)
 		if err != nil {
 			b.Fatal(err)
