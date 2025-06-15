@@ -1,76 +1,45 @@
 package parser
 
-import (
-	"io"
-)
-
-// Parser represents a markdown parser
+// Parser interface defines methods for parsing Markdown content
 type Parser interface {
-	// Parse parses markdown content from a reader
-	Parse(r io.Reader) (Node, error)
-	// ParseBytes parses markdown content from bytes
-	ParseBytes(data []byte) (Node, error)
-	// ParseString parses markdown content from string
-	ParseString(content string) (Node, error)
+	Parse(content []byte) (*Document, error)
+	Validate() error
 }
 
-// Options represents parser options
-type Options struct {
-	// Extensions specifies enabled extensions
-	Extensions []string
-	// Strict enables strict parsing mode
-	Strict bool
-}
-
-// DefaultOptions returns default parser options
-func DefaultOptions() *Options {
-	return &Options{
-		Extensions: []string{"table", "strikethrough", "autolink", "tasklist"},
-		Strict:     false,
-	}
-}
-
-// New creates a new parser with default options
+// New creates a new parser instance
 func New() Parser {
-	return NewWithOptions(DefaultOptions())
+	return NewGoldmarkParser()
 }
 
-// NewWithOptions creates a new parser with specified options
-func NewWithOptions(opts *Options) Parser {
-	return &parser{
-		options: opts,
-	}
+// DefaultParser returns the default parser implementation
+func DefaultParser() Parser {
+	return NewGoldmarkParser()
 }
 
-// parser implements the Parser interface
-type parser struct {
-	options *Options
+// BasicParser represents a simple placeholder parser (for testing)
+type BasicParser struct{}
+
+// NewBasicParser creates a new basic parser
+func NewBasicParser() *BasicParser {
+	return &BasicParser{}
 }
 
-// Parse parses markdown content from a reader
-func (p *parser) Parse(r io.Reader) (Node, error) {
-	data, err := io.ReadAll(r)
-	if err != nil {
-		return nil, err
-	}
-	return p.ParseBytes(data)
-}
-
-// ParseBytes parses markdown content from bytes
-func (p *parser) ParseBytes(data []byte) (Node, error) {
-	return p.ParseString(string(data))
-}
-
-// ParseString parses markdown content from string
-func (p *parser) ParseString(content string) (Node, error) {
-	// TODO: Implement actual parsing logic
-	// For now, create a simple document with a text node
-	doc := &Document{}
-	if len(content) > 0 {
-		text := &Text{Content: content}
-		doc.Children = append(doc.Children, text)
+// Parse implements a basic placeholder parser
+func (p *BasicParser) Parse(content []byte) (*Document, error) {
+	// Create a simple document with one paragraph
+	doc := &Document{
+		Children: []Node{
+			&Paragraph{
+				Text: string(content),
+			},
+		},
 	}
 	return doc, nil
+}
+
+// Validate validates the parser configuration
+func (p *BasicParser) Validate() error {
+	return nil
 }
 
 // Helper functions for node manipulation

@@ -1,3 +1,4 @@
+// Package main provides the command-line interface for the mdfmt markdown formatter.
 package main
 
 import (
@@ -7,79 +8,73 @@ import (
 
 	"github.com/Gosayram/go-mdfmt/internal/version"
 	"github.com/Gosayram/go-mdfmt/pkg/config"
+	"github.com/Gosayram/go-mdfmt/pkg/processor"
 )
 
-// CLI flags
-var (
-	flagWrite     = flag.Bool("w", false, "write result to (source) file instead of stdout")
-	flagWrite2    = flag.Bool("write", false, "write result to (source) file instead of stdout")
-	flagDiff      = flag.Bool("d", false, "display diffs instead of rewriting files")
-	flagDiff2     = flag.Bool("diff", false, "display diffs instead of rewriting files")
-	flagCheck     = flag.Bool("c", false, "don't write the files back, just return the status. Return code 0 if nothing would change, 1 if some files would be reformatted")
-	flagCheck2    = flag.Bool("check", false, "don't write the files back, just return the status. Return code 0 if nothing would change, 1 if some files would be reformatted")
-	flagLineWidth = flag.Int("line-width", 0, "maximum line width for text reflow (0 = use config default)")
-	flagConfig    = flag.String("config", "", "path to configuration file")
-	flagVerbose   = flag.Bool("v", false, "verbose output")
-	flagVerbose2  = flag.Bool("verbose", false, "verbose output")
-	flagVersion   = flag.Bool("version", false, "print version information")
-	flagHelp      = flag.Bool("h", false, "print help information")
-	flagHelp2     = flag.Bool("help", false, "print help information")
+const (
+	// ExitCodeError indicates an error occurred
+	ExitCodeError = 2
+	// OutputFilePermissions defines the file permissions for output files
+	OutputFilePermissions = 0o600
 )
+
+var (
+	flagWrite = flag.Bool("w", false, "write result to (source) file instead of stdout")
+	flagCheck = flag.Bool("c", false,
+		"don't write the files back, just return the status. "+
+			"Return code 0 if nothing would change, 1 if some files would be reformatted")
+	flagCheck2 = flag.Bool("check", false,
+		"don't write the files back, just return the status. "+
+			"Return code 0 if nothing would change, 1 if some files would be reformatted")
+	flagList    = flag.Bool("l", false, "list files whose formatting differs from mdfmt's")
+	flagDiff    = flag.Bool("d", false, "display diffs instead of rewriting files")
+	flagVerbose = flag.Bool("v", false, "verbose output")
+	flagVersion = flag.Bool("version", false, "print version information")
+	flagHelp    = flag.Bool("h", false, "show help")
+	flagConfig  = flag.String("config", "", "path to configuration file")
+)
+
+// ProcessingArgs contains arguments for file processing
+type ProcessingArgs struct {
+	write   bool
+	check   bool
+	list    bool
+	diff    bool
+	verbose bool
+}
 
 func main() {
 	flag.Parse()
 
-	// Handle version flag
+	if *flagHelp {
+		printUsage()
+		return
+	}
+
 	if *flagVersion {
 		fmt.Println(version.GetFullVersionInfo())
 		return
 	}
 
-	// Handle help flag
-	if *flagHelp || *flagHelp2 {
-		printUsage()
-		return
-	}
-
-	// Combine short and long flag variants
-	write := *flagWrite || *flagWrite2
-	diff := *flagDiff || *flagDiff2
-	check := *flagCheck || *flagCheck2
-	verbose := *flagVerbose || *flagVerbose2
-
-	// Validate flag combinations
-	if err := validateFlags(write, diff, check); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(2)
-	}
-
-	// Load configuration
-	cfg, err := loadConfig(*flagConfig, *flagLineWidth)
+	// Get configuration
+	cfg, err := loadConfig(*flagConfig, 0)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading configuration: %v\n", err)
-		os.Exit(2)
+		os.Exit(ExitCodeError)
 	}
 
-	// Get files to process
-	files := flag.Args()
-	if len(files) == 0 {
-		fmt.Fprintf(os.Stderr, "Error: no files specified\n")
-		printUsage()
-		os.Exit(2)
+	// Get file paths
+	paths := flag.Args()
+	if len(paths) == 0 {
+		fmt.Fprintf(os.Stderr, "Error: No input files specified\n")
+		os.Exit(ExitCodeError)
 	}
 
-	// Create application
-	app := &App{
-		config:  cfg,
-		verbose: verbose,
-		write:   write,
-		diff:    diff,
-		check:   check,
+	// Process files
+	if err := processFiles(paths, cfg); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(ExitCodeError)
 	}
-
-	// Run the application
-	exitCode := app.Run(files)
-	os.Exit(exitCode)
 }
 
 // printUsage prints the usage information
@@ -108,35 +103,13 @@ For more information, visit: https://github.com/Gosayram/go-mdfmt
 `)
 }
 
-// validateFlags validates flag combinations
-func validateFlags(write, diff, check bool) error {
-	count := 0
-	if write {
-		count++
-	}
-	if diff {
-		count++
-	}
-	if check {
-		count++
-	}
-
-	if count > 1 {
-		return fmt.Errorf("only one of --write, --diff, or --check can be specified")
-	}
-
-	return nil
-}
-
 // loadConfig loads the configuration from file or defaults
 func loadConfig(configPath string, lineWidth int) (*config.Config, error) {
-	var cfg *config.Config
-	var err error
+	cfg := config.Default()
 
 	if configPath != "" {
 		// Load from specified config file
-		cfg, err = config.LoadFromFile(configPath)
-		if err != nil {
+		if err := cfg.LoadFromFile(configPath); err != nil {
 			return nil, fmt.Errorf("failed to load config from %s: %w", configPath, err)
 		}
 	} else {
@@ -148,14 +121,11 @@ func loadConfig(configPath string, lineWidth int) (*config.Config, error) {
 
 		configFile, err := config.FindConfigFile(wd)
 		if err == nil {
-			cfg, err = config.LoadFromFile(configFile)
-			if err != nil {
+			if err := cfg.LoadFromFile(configFile); err != nil {
 				return nil, fmt.Errorf("failed to load config from %s: %w", configFile, err)
 			}
-		} else {
-			// Use default configuration
-			cfg = config.Default()
 		}
+		// If no config file found, use defaults (already set above)
 	}
 
 	// Override line width if specified
@@ -171,45 +141,92 @@ func loadConfig(configPath string, lineWidth int) (*config.Config, error) {
 	return cfg, nil
 }
 
-// App represents the main application
-type App struct {
-	config  *config.Config
-	verbose bool
-	write   bool
-	diff    bool
-	check   bool
+// processFiles processes the specified files
+func processFiles(paths []string, cfg *config.Config) error {
+	fp := processor.NewFileProcessor(cfg, *flagVerbose)
+
+	files, err := fp.FindFiles(paths)
+	if err != nil {
+		return fmt.Errorf("failed to find files: %w", err)
+	}
+
+	if len(files) == 0 {
+		if *flagVerbose {
+			fmt.Println("No markdown files found")
+		}
+		return nil
+	}
+
+	// Create processing arguments
+	args := &ProcessingArgs{
+		write:   *flagWrite,
+		check:   *flagCheck || *flagCheck2,
+		list:    *flagList,
+		diff:    *flagDiff,
+		verbose: *flagVerbose,
+	}
+
+	var hasChanges bool
+	for _, file := range files {
+		changed, err := processFile(file, cfg, args)
+		if err != nil {
+			return fmt.Errorf("error processing %s: %w", file.Path, err)
+		}
+		if changed {
+			hasChanges = true
+		}
+	}
+
+	// Handle check mode exit code
+	if args.check && hasChanges {
+		os.Exit(1)
+	}
+
+	return nil
 }
 
-// Run runs the application with the given files
-func (a *App) Run(files []string) int {
-	if a.verbose {
-		fmt.Fprintf(os.Stderr, "Processing %d files...\n", len(files))
+// processFile processes a single file
+func processFile(file processor.FileInfo, _ *config.Config, args *ProcessingArgs) (bool, error) {
+	content, err := os.ReadFile(file.Path)
+	if err != nil {
+		return false, fmt.Errorf("failed to read file: %w", err)
 	}
 
-	// TODO: Implement actual file processing
-	// For now, just print what we would do
-	for _, file := range files {
-		if a.verbose {
-			fmt.Fprintf(os.Stderr, "Processing: %s\n", file)
+	// For now, just return the content unchanged
+	// In a real implementation, this would parse and format the markdown
+	formatted := string(content)
+
+	// Check if content would change
+	changed := string(content) != formatted
+
+	switch {
+	case args.write:
+		if changed {
+			if err := os.WriteFile(file.Path, []byte(formatted), OutputFilePermissions); err != nil {
+				return false, fmt.Errorf("failed to write file: %w", err)
+			}
+			if args.verbose {
+				fmt.Printf("Formatted: %s\n", file.Path)
+			}
 		}
-
-		if a.write {
-			fmt.Printf("Would write formatted content to: %s\n", file)
-		} else if a.diff {
-			fmt.Printf("Would show diff for: %s\n", file)
-		} else if a.check {
-			fmt.Printf("Would check formatting for: %s\n", file)
-		} else {
-			fmt.Printf("Would format to stdout: %s\n", file)
+	case args.check:
+		if changed && args.verbose {
+			fmt.Printf("would reformat %s\n", file.Path)
 		}
+	case args.list:
+		if changed {
+			fmt.Println(file.Path)
+		}
+	case args.diff:
+		if changed {
+			// Show diff (simplified)
+			fmt.Printf("--- %s\n+++ %s\n", file.Path, file.Path)
+			// In a real implementation, show actual diff
+		}
+	default:
+		// Write to stdout
+		fmt.Print(formatted)
 	}
 
-	if a.verbose {
-		fmt.Fprintf(os.Stderr, "Configuration:\n")
-		fmt.Fprintf(os.Stderr, "  Line width: %d\n", a.config.LineWidth)
-		fmt.Fprintf(os.Stderr, "  Heading style: %s\n", a.config.Heading.Style)
-		fmt.Fprintf(os.Stderr, "  Bullet style: %s\n", a.config.List.BulletStyle)
-	}
-
-	return 0
+	return changed, nil
 }

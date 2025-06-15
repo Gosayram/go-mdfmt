@@ -1,8 +1,14 @@
+// Package version provides version information and build details for the application.
 package version
 
 import (
 	"fmt"
 	"runtime"
+)
+
+const (
+	// ShortCommitHashLength defines the length for shortened commit hashes
+	ShortCommitHashLength = 7
 )
 
 // Build-time variables set by linker flags
@@ -72,7 +78,13 @@ func (b BuildInfo) String() string {
 		b.Version, b.Date, b.GoVersion)
 }
 
-// Short returns a short version string
-func (b BuildInfo) Short() string {
-	return b.Version
+// Short returns a short version string with version and commit information.
+func (b *BuildInfo) Short() string {
+	if b.Commit == "" {
+		return b.Version
+	}
+	if len(b.Commit) > ShortCommitHashLength {
+		return fmt.Sprintf("%s (%s)", b.Version, b.Commit[:ShortCommitHashLength])
+	}
+	return fmt.Sprintf("%s (%s)", b.Version, b.Commit)
 }

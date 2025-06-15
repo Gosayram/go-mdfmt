@@ -1,3 +1,4 @@
+// Package config provides configuration management for the markdown formatter.
 package config
 
 import (
@@ -7,6 +8,15 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+)
+
+const (
+	// DefaultLineWidth defines the default maximum line width
+	DefaultLineWidth = 80
+	// DefaultMaxBlankLines defines the default maximum consecutive blank lines
+	DefaultMaxBlankLines = 2
+	// ConfigFilePermissions defines the file permissions for config files
+	ConfigFilePermissions = 0o600
 )
 
 // Config represents the configuration for mdfmt
@@ -77,7 +87,7 @@ type FilesConfig struct {
 // Default returns the default configuration
 func Default() *Config {
 	return &Config{
-		LineWidth: 80,
+		LineWidth: DefaultLineWidth,
 		Heading: HeadingConfig{
 			Style:           "atx",
 			NormalizeLevels: true,
@@ -92,41 +102,36 @@ func Default() *Config {
 			LanguageDetection: true,
 		},
 		Whitespace: WhitespaceConfig{
-			MaxBlankLines:      2,
+			MaxBlankLines:      DefaultMaxBlankLines,
 			TrimTrailingSpaces: true,
 			EnsureFinalNewline: true,
 		},
 		Files: FilesConfig{
 			Extensions:     []string{".md", ".markdown", ".mdown"},
-			IgnorePatterns: []string{"node_modules/**", ".git/**"},
+			IgnorePatterns: []string{"node_modules/**", ".git/**", "vendor/**"},
 		},
 	}
 }
 
-// LoadFromFile loads configuration from a YAML file
-func LoadFromFile(filename string) (*Config, error) {
-	data, err := os.ReadFile(filename)
+// LoadFromFile loads configuration from a file.
+func (c *Config) LoadFromFile(filename string) error {
+	data, err := os.ReadFile(filename) // #nosec G304 - filename is user provided and validated
 	if err != nil {
-		return nil, fmt.Errorf("failed to read config file %s: %w", filename, err)
+		return fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	config := Default()
-	if err := yaml.Unmarshal(data, config); err != nil {
-		return nil, fmt.Errorf("failed to parse config file %s: %w", filename, err)
-	}
-
-	return config, nil
+	return yaml.Unmarshal(data, c)
 }
 
-// SaveToFile saves configuration to a YAML file
+// SaveToFile saves configuration to a file.
 func (c *Config) SaveToFile(filename string) error {
 	data, err := yaml.Marshal(c)
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	if err := os.WriteFile(filename, data, 0644); err != nil {
-		return fmt.Errorf("failed to write config file %s: %w", filename, err)
+	if err := os.WriteFile(filename, data, ConfigFilePermissions); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
 	return nil
@@ -207,21 +212,30 @@ func (c *Config) IsMarkdownFile(filename string) bool {
 	return contains(c.Files.Extensions, ext)
 }
 
-// ShouldIgnore checks if a file should be ignored based on patterns
-func (c *Config) ShouldIgnore(filename string) bool {
+// ShouldIgnore checks if a file should be ignored based on patterns.
+func (c *Config) ShouldIgnore(path string) bool {
+	path = filepath.Clean(path)
+
 	for _, pattern := range c.Files.IgnorePatterns {
-		// Handle directory patterns with **
-		if strings.Contains(pattern, "**") {
-			// Simple glob matching for directory patterns
-			cleanPattern := strings.TrimSuffix(pattern, "/**")
-			if strings.HasPrefix(filename, cleanPattern) {
+		switch {
+		case strings.HasSuffix(pattern, "/**"):
+			// Directory pattern - match if path is under this directory
+			dirPattern := strings.TrimSuffix(pattern, "/**")
+			if strings.HasPrefix(path, dirPattern+"/") || path == dirPattern {
 				return true
 			}
-		} else {
-			if matched, _ := filepath.Match(pattern, filename); matched {
+		case strings.Contains(pattern, "*"):
+			// Wildcard pattern
+			if matched, _ := filepath.Match(pattern, filepath.Base(path)); matched {
+				return true
+			}
+		default:
+			// Exact match
+			if path == pattern || filepath.Base(path) == pattern {
 				return true
 			}
 		}
 	}
+
 	return false
 }

@@ -1,3 +1,4 @@
+// Package renderer provides markdown rendering functionality.
 package renderer
 
 import (
@@ -6,6 +7,11 @@ import (
 
 	"github.com/Gosayram/go-mdfmt/pkg/config"
 	"github.com/Gosayram/go-mdfmt/pkg/parser"
+)
+
+const (
+	// SecondHeadingLevel represents heading level 2
+	SecondHeadingLevel = 2
 )
 
 // Renderer represents a renderer that converts AST back to markdown
@@ -89,14 +95,14 @@ func (r *MarkdownRenderer) renderNode(node parser.Node, depth int) error {
 }
 
 // renderHeading renders a heading node
-func (r *MarkdownRenderer) renderHeading(heading *parser.Heading, depth int) error {
-	if heading.Style == "setext" && heading.Level <= 2 {
+func (r *MarkdownRenderer) renderHeading(heading *parser.Heading, _ int) error {
+	if heading.Style == "setext" && heading.Level <= SecondHeadingLevel {
 		// Setext-style heading
 		r.output.WriteString(heading.Text)
 		r.output.WriteString("\n")
 
 		marker := "="
-		if heading.Level == 2 {
+		if heading.Level == SecondHeadingLevel {
 			marker = "-"
 		}
 
@@ -119,7 +125,7 @@ func (r *MarkdownRenderer) renderHeading(heading *parser.Heading, depth int) err
 }
 
 // renderParagraph renders a paragraph node
-func (r *MarkdownRenderer) renderParagraph(para *parser.Paragraph, depth int) error {
+func (r *MarkdownRenderer) renderParagraph(para *parser.Paragraph, _ int) error {
 	content := para.Text
 
 	// Apply line width wrapping
@@ -167,7 +173,7 @@ func (r *MarkdownRenderer) renderListItem(item *parser.ListItem, depth int) erro
 }
 
 // renderCodeBlock renders a code block node
-func (r *MarkdownRenderer) renderCodeBlock(code *parser.CodeBlock, depth int) error {
+func (r *MarkdownRenderer) renderCodeBlock(code *parser.CodeBlock, _ int) error {
 	if code.Fenced {
 		r.output.WriteString(code.Fence)
 		if code.Language != "" {
@@ -195,7 +201,7 @@ func (r *MarkdownRenderer) renderCodeBlock(code *parser.CodeBlock, depth int) er
 }
 
 // renderText renders a text node
-func (r *MarkdownRenderer) renderText(text *parser.Text, depth int) error {
+func (r *MarkdownRenderer) renderText(text *parser.Text, _ int) error {
 	content := text.Content
 
 	// Apply whitespace normalization

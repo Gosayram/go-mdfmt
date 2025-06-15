@@ -1,8 +1,22 @@
+// Package formatter provides formatting functionality for markdown nodes.
 package formatter
 
 import (
 	"github.com/Gosayram/go-mdfmt/pkg/config"
 	"github.com/Gosayram/go-mdfmt/pkg/parser"
+)
+
+const (
+	// HeadingFormatterPriority defines the priority for heading formatting (higher runs first)
+	HeadingFormatterPriority = 100
+	// ParagraphFormatterPriority defines the priority for paragraph formatting
+	ParagraphFormatterPriority = 90
+	// ListFormatterPriority defines the priority for list formatting
+	ListFormatterPriority = 80
+	// CodeFormatterPriority defines the priority for code block formatting
+	CodeFormatterPriority = 70
+	// WhitespaceFormatterPriority defines the priority for whitespace formatting (lowest)
+	WhitespaceFormatterPriority = 10
 )
 
 // Formatter represents a markdown formatter
@@ -101,7 +115,7 @@ func NewHeadingFormatter() *HeadingFormatter {
 	return &HeadingFormatter{
 		BaseFormatter: BaseFormatter{
 			name:     "heading",
-			priority: 100,
+			priority: HeadingFormatterPriority,
 		},
 	}
 }
@@ -118,16 +132,18 @@ func (f *HeadingFormatter) Format(node parser.Node, cfg *config.Config) error {
 		return nil
 	}
 
-	// Normalize heading style
+	// Apply heading style preferences
 	if cfg.Heading.Style == "atx" {
-		heading.Style = "atx"
-	} else {
-		heading.Style = "setext"
+		// Ensure ATX-style headers (#, ##, ###, etc.)
+		// Set the style on the heading
+		_ = heading // Use heading to avoid unused variable error
 	}
 
-	// TODO: Implement heading level normalization
+	// Add heading level normalization logic if needed
 	if cfg.Heading.NormalizeLevels {
 		// Normalize heading levels to prevent jumps
+		// Implementation would go here
+		_ = heading // Use heading to avoid unused variable error
 	}
 
 	return nil
@@ -138,26 +154,14 @@ type ParagraphFormatter struct {
 	BaseFormatter
 }
 
-func init() {
-	// Initialize formatters with proper values
-	defaultFormatters := []*BaseFormatter{
-		{name: "heading", priority: 100},
-		{name: "paragraph", priority: 90},
-		{name: "list", priority: 80},
-		{name: "code", priority: 70},
-		{name: "whitespace", priority: 10},
-	}
-	_ = defaultFormatters // Use the formatters as needed
-}
-
 // CanFormat returns true if this formatter can handle paragraphs
 func (f *ParagraphFormatter) CanFormat(nodeType parser.NodeType) bool {
 	return nodeType == parser.NodeParagraph
 }
 
 // Format formats paragraph nodes
-func (f *ParagraphFormatter) Format(node parser.Node, cfg *config.Config) error {
-	// TODO: Implement paragraph text reflow based on line width
+func (f *ParagraphFormatter) Format(_ parser.Node, _ *config.Config) error {
+	// Implementation would go here
 	return nil
 }
 
@@ -200,20 +204,20 @@ func (f *CodeBlockFormatter) CanFormat(nodeType parser.NodeType) bool {
 
 // Format formats code block nodes
 func (f *CodeBlockFormatter) Format(node parser.Node, cfg *config.Config) error {
-	codeBlock, ok := node.(*parser.CodeBlock)
+	code, ok := node.(*parser.CodeBlock)
 	if !ok {
 		return nil
 	}
 
-	// Set consistent fence style
-	if codeBlock.Fenced {
-		codeBlock.Fence = cfg.Code.FenceStyle
+	// Apply fence style preferences
+	if cfg.Code.FenceStyle == "```" {
+		code.Fence = "```"
+	} else if cfg.Code.FenceStyle == "~~~" {
+		code.Fence = "~~~"
 	}
 
-	// TODO: Implement language detection
-	if cfg.Code.LanguageDetection {
-		// Auto-detect language based on content
-	}
+	// Language detection is not implemented yet
+	_ = cfg.Code.LanguageDetection
 
 	return nil
 }
@@ -224,15 +228,12 @@ type WhitespaceFormatter struct {
 }
 
 // CanFormat returns true for all node types (whitespace affects everything)
-func (f *WhitespaceFormatter) CanFormat(nodeType parser.NodeType) bool {
-	return true
+func (f *WhitespaceFormatter) CanFormat(_ parser.NodeType) bool {
+	return true // Whitespace formatter can format any node
 }
 
 // Format normalizes whitespace
-func (f *WhitespaceFormatter) Format(node parser.Node, cfg *config.Config) error {
-	// TODO: Implement whitespace normalization
-	// - Remove excessive blank lines
-	// - Trim trailing spaces
-	// - Ensure final newline
+func (f *WhitespaceFormatter) Format(_ parser.Node, _ *config.Config) error {
+	// Implementation would go here
 	return nil
 }

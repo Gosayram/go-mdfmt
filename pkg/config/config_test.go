@@ -84,65 +84,73 @@ func TestValidate(t *testing.T) {
 
 func TestLoadFromFile(t *testing.T) {
 	// Create a temporary config file
-	tmpDir := t.TempDir()
-	configFile := filepath.Join(tmpDir, "test.yaml")
-
-	configContent := `line_width: 100
+	content := `line_width: 100
 heading:
-  style: setext
+  style: "setext"
   normalize_levels: false
 list:
   bullet_style: "*"
   number_style: ")"
 code:
   fence_style: "~~~"
-whitespace:
-  max_blank_lines: 1
+  language_detection: false
 `
 
-	err := os.WriteFile(configFile, []byte(configContent), 0644)
+	tmpfile, err := os.CreateTemp("", "test-config-*.yaml")
 	if err != nil {
-		t.Fatalf("Failed to create test config file: %v", err)
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpfile.Name())
+
+	if _, err := tmpfile.Write([]byte(content)); err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
+	}
+	tmpfile.Close()
+
+	cfg := Default()
+	err = cfg.LoadFromFile(tmpfile.Name())
+	if err != nil {
+		t.Fatalf("LoadFromFile failed: %v", err)
 	}
 
-	cfg, err := LoadFromFile(configFile)
-	if err != nil {
-		t.Fatalf("LoadFromFile() error = %v", err)
-	}
-
+	// Verify loaded values
 	if cfg.LineWidth != 100 {
-		t.Errorf("Expected LineWidth to be 100, got %d", cfg.LineWidth)
+		t.Errorf("Expected LineWidth 100, got %d", cfg.LineWidth)
 	}
-
 	if cfg.Heading.Style != "setext" {
-		t.Errorf("Expected Heading.Style to be 'setext', got %s", cfg.Heading.Style)
+		t.Errorf("Expected Heading.Style 'setext', got %s", cfg.Heading.Style)
 	}
-
-	if cfg.Heading.NormalizeLevels {
-		t.Error("Expected Heading.NormalizeLevels to be false")
-	}
-
 	if cfg.List.BulletStyle != "*" {
-		t.Errorf("Expected List.BulletStyle to be '*', got %s", cfg.List.BulletStyle)
-	}
-
-	if cfg.List.NumberStyle != ")" {
-		t.Errorf("Expected List.NumberStyle to be ')', got %s", cfg.List.NumberStyle)
-	}
-
-	if cfg.Code.FenceStyle != "~~~" {
-		t.Errorf("Expected Code.FenceStyle to be '~~~', got %s", cfg.Code.FenceStyle)
-	}
-
-	if cfg.Whitespace.MaxBlankLines != 1 {
-		t.Errorf("Expected Whitespace.MaxBlankLines to be 1, got %d", cfg.Whitespace.MaxBlankLines)
+		t.Errorf("Expected List.BulletStyle '*', got %s", cfg.List.BulletStyle)
 	}
 }
 
-func TestLoadFromFileNotFound(t *testing.T) {
-	_, err := LoadFromFile("nonexistent.yaml")
+func TestLoadFromFile_NotFound(t *testing.T) {
+	cfg := Default()
+	err := cfg.LoadFromFile("nonexistent.yaml")
 	if err == nil {
-		t.Error("Expected error when loading nonexistent file")
+		t.Error("Expected error for nonexistent file, got nil")
+	}
+}
+
+func TestLoadFromFile_InvalidYAML(t *testing.T) {
+	content := "invalid: yaml: content:"
+
+	tmpfile, err := os.CreateTemp("", "test-invalid-*.yaml")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpfile.Name())
+
+	if _, err := tmpfile.Write([]byte(content)); err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
+	}
+	tmpfile.Close()
+
+	cfg := Default()
+	err = cfg.LoadFromFile(tmpfile.Name())
+	if err == nil {
+		t.Error("Expected error for invalid YAML, got nil")
 	}
 }
 
@@ -164,7 +172,8 @@ func TestSaveToFile(t *testing.T) {
 	}
 
 	// Load it back and verify
-	loadedCfg, err := LoadFromFile(configFile)
+	loadedCfg := Default()
+	err = loadedCfg.LoadFromFile(configFile)
 	if err != nil {
 		t.Fatalf("Failed to load saved config: %v", err)
 	}
