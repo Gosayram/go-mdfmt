@@ -108,6 +108,15 @@ help:
 	@echo "  clean-coverage  - Clean coverage and benchmark files"
 	@echo "  clean-all       - Clean everything including dependencies"
 	@echo ""
+	@echo "  Test Data:"
+	@echo "  =========="
+	@echo "  test-data       - Run tests on testdata files (safe copies)"
+	@echo "  test-data-copy  - Create safe copies of testdata for testing"
+	@echo "  test-data-format- Format testdata files in-place (copies only)"
+	@echo "  test-data-check - Check if testdata files need formatting"
+	@echo "  test-data-diff  - Show differences for testdata files"
+	@echo "  test-data-clean - Clean test data copies and results"
+	@echo ""
 	@echo "  Documentation:"
 	@echo "  =============="
 	@echo "  docs            - Generate documentation"
@@ -482,6 +491,47 @@ docker-build:
 docker-run:
 	@echo "Running Docker image..."
 	docker run -it --rm $(BINARY_NAME):$(TAG_NAME) --version
+
+# Test data management
+.PHONY: test-data test-data-clean test-data-copy test-data-format test-data-check
+
+test-data: build test-data-copy
+	@echo "Running tests on testdata files..."
+	@echo "Testing complex formatting..."
+	./$(OUTPUT_DIR)/$(BINARY_NAME) testdata/copies/test_complex.md > testdata/results/complex_output.md
+	@echo "Testing link handling..."
+	./$(OUTPUT_DIR)/$(BINARY_NAME) testdata/copies/test_links.md > testdata/results/links_output.md
+	@echo "Testing simple links..."
+	./$(OUTPUT_DIR)/$(BINARY_NAME) testdata/copies/test_simple_link.md > testdata/results/simple_link_output.md
+	@echo "Testing debug output..."
+	./$(OUTPUT_DIR)/$(BINARY_NAME) testdata/copies/test_debug.md > testdata/results/debug_output.md
+	@echo "Test data processing completed. Results in testdata/results/"
+
+test-data-clean:
+	@echo "Cleaning test data copies and results..."
+	rm -rf testdata/copies testdata/results
+	@echo "Test data cleaned"
+
+test-data-copy:
+	@echo "Creating copies of test data for safe testing..."
+	@mkdir -p testdata/copies testdata/results
+	@cp testdata/*.md testdata/copies/ 2>/dev/null || echo "No .md files to copy"
+	@echo "Test data copied to testdata/copies/"
+
+test-data-format: build test-data-copy
+	@echo "Formatting test data files in-place (copies only)..."
+	./$(OUTPUT_DIR)/$(BINARY_NAME) --write testdata/copies/*.md
+	@echo "Test data formatted. Check testdata/copies/ for results"
+
+test-data-check: build test-data-copy
+	@echo "Checking if test data files need formatting..."
+	./$(OUTPUT_DIR)/$(BINARY_NAME) --check testdata/copies/*.md || echo "Some files need formatting"
+	@echo "Format check completed"
+
+test-data-diff: build test-data-copy
+	@echo "Showing differences for test data files..."
+	./$(OUTPUT_DIR)/$(BINARY_NAME) --diff testdata/copies/*.md
+	@echo "Diff check completed"
 
 # Documentation
 .PHONY: docs docs-api

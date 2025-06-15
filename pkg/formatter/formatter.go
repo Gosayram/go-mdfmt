@@ -274,43 +274,84 @@ func (f *ListFormatter) CanFormat(nodeType parser.NodeType) bool {
 func (f *ListFormatter) Format(node parser.Node, cfg *config.Config) error {
 	switch n := node.(type) {
 	case *parser.List:
-		// Set consistent bullet style for unordered lists
-		if !n.Ordered {
-			n.Marker = cfg.List.BulletStyle
-			// Apply the same marker to all items
-			for _, item := range n.Items {
-				item.Marker = cfg.List.BulletStyle
-			}
-		} else {
-			// For ordered lists, use configured number style
-			for i, item := range n.Items {
-				switch cfg.List.NumberStyle {
-				case ".":
-					item.Marker = fmt.Sprintf("%d.", i+1)
-				case ")":
-					item.Marker = fmt.Sprintf("%d)", i+1)
-				default:
-					item.Marker = fmt.Sprintf("%d.", i+1)
-				}
-			}
-		}
-
-		// Apply consistent indentation if enabled
-		if cfg.List.ConsistentIndentation {
-			for _, item := range n.Items {
-				// Normalize list item text (trim and clean whitespace)
-				item.Text = strings.TrimSpace(item.Text)
-				item.Text = normalizeWhitespace(item.Text)
-			}
-		}
-
+		return f.formatList(n, cfg)
 	case *parser.ListItem:
-		// Individual list item formatting
-		n.Text = strings.TrimSpace(n.Text)
-		n.Text = normalizeWhitespace(n.Text)
+		return f.formatListItem(n, cfg)
+	}
+	return nil
+}
+
+// formatList handles formatting of list nodes
+func (f *ListFormatter) formatList(list *parser.List, cfg *config.Config) error {
+	if !list.Ordered {
+		f.formatUnorderedList(list, cfg)
+	} else {
+		f.formatOrderedList(list, cfg)
 	}
 
+	return f.processListItems(list, cfg)
+}
+
+// formatUnorderedList sets consistent bullet style for unordered lists
+func (f *ListFormatter) formatUnorderedList(list *parser.List, cfg *config.Config) {
+	list.Marker = cfg.List.BulletStyle
+	// Apply the same marker to all items
+	for _, item := range list.Items {
+		item.Marker = cfg.List.BulletStyle
+	}
+}
+
+// formatOrderedList sets consistent numbering for ordered lists
+func (f *ListFormatter) formatOrderedList(list *parser.List, cfg *config.Config) {
+	for i, item := range list.Items {
+		switch cfg.List.NumberStyle {
+		case ".":
+			item.Marker = fmt.Sprintf("%d.", i+1)
+		case ")":
+			item.Marker = fmt.Sprintf("%d)", i+1)
+		default:
+			item.Marker = fmt.Sprintf("%d.", i+1)
+		}
+	}
+}
+
+// processListItems handles list item processing and nested lists
+func (f *ListFormatter) processListItems(list *parser.List, cfg *config.Config) error {
+	for _, item := range list.Items {
+		if cfg.List.ConsistentIndentation {
+			// Normalize list item text (trim and clean whitespace)
+			item.Text = strings.TrimSpace(item.Text)
+			item.Text = normalizeWhitespace(item.Text)
+		}
+
+		// Process nested lists recursively
+		if err := f.processNestedLists(item, cfg); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+// processNestedLists handles nested lists within list items
+func (f *ListFormatter) processNestedLists(item *parser.ListItem, cfg *config.Config) error {
+	for _, child := range item.Children {
+		if childList, ok := child.(*parser.List); ok {
+			if err := f.Format(childList, cfg); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// formatListItem handles formatting of individual list items
+func (f *ListFormatter) formatListItem(item *parser.ListItem, cfg *config.Config) error {
+	// Individual list item formatting
+	item.Text = strings.TrimSpace(item.Text)
+	item.Text = normalizeWhitespace(item.Text)
+
+	// Process nested lists in this item
+	return f.processNestedLists(item, cfg)
 }
 
 // CodeBlockFormatter formats code block nodes

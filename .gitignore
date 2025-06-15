@@ -80,3 +80,7 @@ node_modules/
 
 # Prettier ignore files
 .prettierignore
+
+# Test data
+testdata/cop*
+testdata/res*

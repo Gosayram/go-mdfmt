@@ -264,16 +264,46 @@ func (p *GoldmarkParser) extractListItemText(n ast.Node, source []byte) string {
 		if child.Kind() != ast.KindList {
 			var childText string
 			if child.Kind() == ast.KindParagraph {
-				childText = p.extractText(child, source)
+				// Use paragraph text extraction to preserve inline formatting
+				childText = p.extractParagraphText(child, source)
 			} else {
-				childText = p.extractTextRecursive(child, source)
+				// For all other nodes, try to extract with inline formatting
+				childText = p.extractWithInlineFormatting(child, source)
 			}
 			if childText != "" {
+				if buf.Len() > 0 {
+					buf.WriteString(" ")
+				}
 				buf.WriteString(childText)
 			}
 		}
 	}
 	return strings.TrimSpace(buf.String())
+}
+
+// extractWithInlineFormatting extracts text preserving inline formatting
+func (p *GoldmarkParser) extractWithInlineFormatting(n ast.Node, source []byte) string {
+	var buf bytes.Buffer
+
+	switch n.Kind() {
+	case ast.KindText:
+		text := n.(*ast.Text)
+		buf.Write(text.Segment.Value(source))
+	case ast.KindEmphasis:
+		p.extractEmphasisText(n, source, &buf)
+	case ast.KindCodeSpan:
+		p.extractCodeSpanText(n, source, &buf)
+	case ast.KindLink:
+		p.extractLinkText(n, source, &buf)
+	default:
+		// For container nodes, process children with inline formatting
+		for child := n.FirstChild(); child != nil; child = child.NextSibling() {
+			childText := p.extractWithInlineFormatting(child, source)
+			buf.WriteString(childText)
+		}
+	}
+
+	return buf.String()
 }
 
 // extractParagraphText extracts text from paragraph nodes preserving inline formatting

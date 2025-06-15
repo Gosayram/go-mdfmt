@@ -3,6 +3,7 @@ package renderer
 
 import (
 	"io"
+	"regexp"
 	"strings"
 
 	"github.com/Gosayram/go-mdfmt/pkg/config"
@@ -131,8 +132,11 @@ func (r *MarkdownRenderer) renderHeading(heading *parser.Heading, _ int) error {
 func (r *MarkdownRenderer) renderParagraph(para *parser.Paragraph, _ int) error {
 	content := para.Text
 
-	// Apply line width wrapping
-	if r.config.LineWidth > 0 {
+	// Fix broken markdown links first
+	content = r.fixBrokenLinks(content)
+
+	// Apply line width wrapping only if no markdown links are present
+	if r.config.LineWidth > 0 && !r.containsMarkdownLinks(content) {
 		content = r.wrapText(content, r.config.LineWidth)
 	}
 
@@ -142,12 +146,66 @@ func (r *MarkdownRenderer) renderParagraph(para *parser.Paragraph, _ int) error 
 	return nil
 }
 
+// containsMarkdownLinks checks if text contains markdown links
+func (r *MarkdownRenderer) containsMarkdownLinks(text string) bool {
+	linkPattern := `\[[^\]]*\]\([^)]*\)`
+	matched, _ := regexp.MatchString(linkPattern, text)
+	// Debug: uncomment to see what's happening
+	// fmt.Printf("DEBUG: Text: %q, Contains links: %v\n", text, matched)
+	return matched
+}
+
+// fixBrokenLinks repairs markdown links that have been broken across lines
+func (r *MarkdownRenderer) fixBrokenLinks(text string) string {
+	const (
+		// Expected parts count for broken link pattern: [text1]\n[text2](url)
+		brokenLinkPartsCount = 4
+		// Expected parts count for multi-break pattern: [text...](url)
+		multiBreakPartsCount = 3
+		// Indices for regex match parts
+		linkTextPart1Index = 1
+		linkTextPart2Index = 2
+		urlPartIndex       = 3
+		linkTextIndex      = 1
+		urlIndex           = 2
+	)
+
+	// Pattern to match broken links: [text\nmore text](url)
+	brokenLinkPattern := `\[([^\]]*)\n([^\]]*)\]\(([^)]*)\)`
+	re := regexp.MustCompile(brokenLinkPattern)
+
+	// Replace broken links with fixed ones
+	fixed := re.ReplaceAllStringFunc(text, func(match string) string {
+		// Extract parts
+		parts := re.FindStringSubmatch(match)
+		if len(parts) == brokenLinkPartsCount {
+			linkText := parts[linkTextPart1Index] + " " + parts[linkTextPart2Index] // Join with space
+			url := parts[urlPartIndex]
+			return "[" + linkText + "](" + url + ")"
+		}
+		return match
+	})
+
+	// Also handle cases where the link text itself has multiple line breaks
+	multiBreakPattern := `\[([^\]]*(?:\n[^\]]*)*)\]\(([^)]*)\)`
+	re2 := regexp.MustCompile(multiBreakPattern)
+
+	fixed = re2.ReplaceAllStringFunc(fixed, func(match string) string {
+		parts := re2.FindStringSubmatch(match)
+		if len(parts) == multiBreakPartsCount {
+			linkText := strings.ReplaceAll(parts[linkTextIndex], "\n", " ")
+			url := parts[urlIndex]
+			return "[" + linkText + "](" + url + ")"
+		}
+		return match
+	})
+
+	return fixed
+}
+
 // renderList renders a list node
 func (r *MarkdownRenderer) renderList(list *parser.List, depth int) error {
-	for i, item := range list.Items {
-		if i > 0 {
-			r.output.WriteString("\n")
-		}
+	for _, item := range list.Items {
 		if err := r.renderListItem(item, depth+1); err != nil {
 			return err
 		}
@@ -184,6 +242,9 @@ func (r *MarkdownRenderer) renderListItem(item *parser.ListItem, depth int) erro
 				return err
 			}
 		}
+	} else {
+		// Add newline after list item text if no nested elements
+		r.output.WriteString("\n")
 	}
 
 	return nil
@@ -234,24 +295,25 @@ func (r *MarkdownRenderer) renderText(text *parser.Text, _ int) error {
 	return nil
 }
 
-// wrapText wraps text to the specified line width
+// wrapText wraps text to the specified line width, preserving markdown links
 func (r *MarkdownRenderer) wrapText(text string, width int) string {
 	if width <= 0 {
 		return text
 	}
 
-	words := strings.Fields(text)
-	if len(words) == 0 {
+	// Split text into tokens, preserving markdown links as single units
+	tokens := r.tokenizeWithLinks(text)
+	if len(tokens) == 0 {
 		return text
 	}
 
 	var lines []string
 	var currentLine strings.Builder
 
-	for i, word := range words {
-		// Check if adding this word would exceed the line width
-		if currentLine.Len() > 0 && currentLine.Len()+1+len(word) > width {
-			// Start a new line
+	for i, token := range tokens {
+		// Check if adding this token would exceed the line width
+		if currentLine.Len() > 0 && currentLine.Len()+1+len(token) > width {
+			// Always start new line when width exceeded (for both links and regular words)
 			lines = append(lines, currentLine.String())
 			currentLine.Reset()
 		}
@@ -259,15 +321,59 @@ func (r *MarkdownRenderer) wrapText(text string, width int) string {
 		if currentLine.Len() > 0 {
 			currentLine.WriteString(" ")
 		}
-		currentLine.WriteString(word)
+		currentLine.WriteString(token)
 
-		// If this is the last word, add the current line
-		if i == len(words)-1 {
+		// If this is the last token, add the current line
+		if i == len(tokens)-1 {
 			lines = append(lines, currentLine.String())
 		}
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+// tokenizeWithLinks splits text into words while keeping markdown links intact
+func (r *MarkdownRenderer) tokenizeWithLinks(text string) []string {
+	// Simple regex-based approach to find markdown links
+	linkPattern := `\[[^\]]*\]\([^)]*\)`
+	re := regexp.MustCompile(linkPattern)
+
+	var tokens []string
+	lastEnd := 0
+
+	// Find all links and process text between them
+	matches := re.FindAllStringIndex(text, -1)
+
+	for _, match := range matches {
+		start, end := match[0], match[1]
+
+		// Add words before the link
+		if start > lastEnd {
+			beforeLink := text[lastEnd:start]
+			words := strings.Fields(beforeLink)
+			tokens = append(tokens, words...)
+		}
+
+		// Add the link as a single token
+		link := text[start:end]
+		tokens = append(tokens, link)
+
+		lastEnd = end
+	}
+
+	// Add remaining words after the last link
+	if lastEnd < len(text) {
+		afterLinks := text[lastEnd:]
+		words := strings.Fields(afterLinks)
+		tokens = append(tokens, words...)
+	}
+
+	// If no links found, just split into words
+	if len(matches) == 0 {
+		tokens = strings.Fields(text)
+	}
+
+	return tokens
 }
 
 // normalizeBlankLines limits consecutive blank lines to the configured maximum
