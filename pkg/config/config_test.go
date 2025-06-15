@@ -232,3 +232,66 @@ func TestShouldIgnore(t *testing.T) {
 		})
 	}
 }
+
+// Benchmark tests
+func BenchmarkConfig_Default(b *testing.B) {
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = Default()
+	}
+}
+
+func BenchmarkConfig_Validate(b *testing.B) {
+	cfg := Default()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		err := cfg.Validate()
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkConfig_LoadFromFile(b *testing.B) {
+	// Create temporary config file
+	tmpfile, err := os.CreateTemp("", "config-*.yaml")
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer os.Remove(tmpfile.Name())
+
+	configContent := `line_width: 80
+heading:
+  style: "atx"
+  normalize_levels: true
+list:
+  bullet_style: "-"
+  number_style: "."
+  consistent_indentation: true
+code:
+  fence_style: "` + "```" + `"
+  language_detection: true
+whitespace:
+  max_blank_lines: 2
+  trim_trailing_spaces: true
+  ensure_final_newline: true
+files:
+  extensions: [".md", ".markdown", ".mdown"]
+  ignore_patterns: ["node_modules/**", ".git/**", "vendor/**"]
+`
+
+	err = os.WriteFile(tmpfile.Name(), []byte(configContent), 0644)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		cfg := Default()
+		err := cfg.LoadFromFile(tmpfile.Name())
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}

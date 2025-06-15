@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -281,5 +282,109 @@ func TestGoldmarkParser_Validate(t *testing.T) {
 	err = invalidParser.Validate()
 	if err == nil {
 		t.Error("Expected validation error for invalid parser")
+	}
+}
+
+// Benchmark tests
+func BenchmarkGoldmarkParser_ParseSimpleDocument(b *testing.B) {
+	parser := NewGoldmarkParser()
+	content := `# Heading
+
+This is a paragraph with some text.
+
+- List item 1
+- List item 2
+- List item 3
+
+` + "```go\nfunc main() {\n    fmt.Println(\"Hello\")\n}\n```"
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := parser.Parse([]byte(content))
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkGoldmarkParser_ParseComplexDocument(b *testing.B) {
+	parser := NewGoldmarkParser()
+	content := `# Main Heading
+
+## Section 1
+
+This is a paragraph with **bold** and *italic* text, plus some ` + "`inline code`" + `.
+
+### Subsection
+
+1. First ordered item
+2. Second ordered item
+   - Nested unordered item
+   - Another nested item
+3. Third ordered item
+
+## Section 2
+
+Here's a code block:
+
+` + "```javascript\nfunction hello() {\n    console.log('Hello, world!');\n    return true;\n}\n```" + `
+
+And here's a [link](https://example.com) and some more text.
+
+> This is a blockquote
+> with multiple lines
+
+## Final Section
+
+- [ ] Todo item 1
+- [x] Completed item
+- [ ] Todo item 2
+
+Final paragraph with some text.
+`
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := parser.Parse([]byte(content))
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkGoldmarkParser_ParseLargeDocument(b *testing.B) {
+	parser := NewGoldmarkParser()
+
+	// Generate a large document
+	var content strings.Builder
+	content.WriteString("# Large Document\n\n")
+
+	for i := 0; i < 100; i++ {
+		content.WriteString(fmt.Sprintf("## Section %d\n\n", i+1))
+		content.WriteString("This is a paragraph with some text that describes the section.\n\n")
+
+		content.WriteString("### Subsection\n\n")
+		for j := 0; j < 10; j++ {
+			content.WriteString(fmt.Sprintf("- List item %d with some descriptive text\n", j+1))
+		}
+		content.WriteString("\n")
+
+		if i%10 == 0 {
+			content.WriteString("```go\n")
+			content.WriteString("func example() {\n")
+			content.WriteString("    fmt.Println(\"Example code\")\n")
+			content.WriteString("}\n")
+			content.WriteString("```\n\n")
+		}
+	}
+
+	contentBytes := []byte(content.String())
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := parser.Parse(contentBytes)
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }

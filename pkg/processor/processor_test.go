@@ -263,3 +263,100 @@ func TestMinFunction(t *testing.T) {
 		}
 	}
 }
+
+// Benchmark tests
+func BenchmarkFileProcessor_FindFiles(b *testing.B) {
+	cfg := config.Default()
+	processor := NewFileProcessor(cfg, false)
+
+	// Create temporary directory structure
+	tempDir := b.TempDir()
+
+	// Create test files
+	testFiles := []string{
+		"README.md",
+		"docs/guide.md",
+		"docs/api.markdown",
+		"test.txt",
+		"script.js",
+		"nested/deep/file.md",
+	}
+
+	for _, file := range testFiles {
+		fullPath := filepath.Join(tempDir, file)
+		dir := filepath.Dir(fullPath)
+		os.MkdirAll(dir, 0755)
+		os.WriteFile(fullPath, []byte("# Test"), 0644)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := processor.FindFiles([]string{tempDir})
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkFileProcessor_IsMarkdownFile(b *testing.B) {
+	cfg := config.Default()
+	processor := NewFileProcessor(cfg, false)
+	testFiles := []string{
+		"README.md",
+		"doc.markdown",
+		"file.mdown",
+		"test.txt",
+		"script.js",
+		"style.css",
+		"config.yaml",
+		"data.json",
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, file := range testFiles {
+			processor.isMarkdownFile(file)
+		}
+	}
+}
+
+func BenchmarkFileProcessor_ReadWriteFile(b *testing.B) {
+	cfg := config.Default()
+	processor := NewFileProcessor(cfg, false)
+
+	content := []byte(`# Benchmark Test
+
+This is test content for benchmarking file operations.
+
+## Section
+
+- Item 1
+- Item 2
+- Item 3
+
+Final paragraph with some text.
+`)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		// Create temp file
+		tmpfile, err := os.CreateTemp("", "bench-*.md")
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		// Write and read
+		err = processor.writeFile(tmpfile.Name(), content)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		_, err = processor.readFile(tmpfile.Name())
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		// Cleanup
+		os.Remove(tmpfile.Name())
+	}
+}
