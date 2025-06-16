@@ -12,13 +12,18 @@ on:
       - 'pkg/**'
       - 'internal/**'
 
-permissions:
-  contents: write
+# Set top-level permissions to read-all for security
+# Required write permissions are explicitly set at job level
+permissions: read-all
 
 jobs:
   auto-tag:
     name: Auto Tag Release
     runs-on: ubuntu-latest
+    permissions:
+      # NOTE: contents:write is required for automated tagging functionality
+      # This is necessary to create git tags and update version files
+      contents: write     # Required to create git tags and update .release-version file
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@002fdce3c6a235733a90a27c80493a3241e56863 # v2.12.1

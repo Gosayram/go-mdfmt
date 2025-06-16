@@ -195,8 +195,10 @@ jobs:
     needs: build_binaries
     runs-on: ubuntu-latest
     permissions:
-      contents: write     # Required to create release and upload assets
-      actions: read       # Required to download artifacts
+      # NOTE: contents:write is required for release creation functionality
+      # This is a recognized and necessary use case for package publishing
+      contents: write     # Required to create GitHub releases and upload release assets
+      actions: read       # Required to download build artifacts from previous jobs
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@002fdce3c6a235733a90a27c80493a3241e56863 # v2.12.1
