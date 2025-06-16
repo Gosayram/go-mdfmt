@@ -12,6 +12,7 @@ import (
 	"github.com/Gosayram/go-mdfmt/pkg/config"
 )
 
+// Constants
 const (
 	// FilePermissions defines the file permissions for written files
 	FilePermissions = 0o600
