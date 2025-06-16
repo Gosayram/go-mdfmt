@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 
 	"github.com/Gosayram/go-mdfmt/pkg/config"
@@ -210,10 +211,10 @@ func TestProcessFiles(t *testing.T) {
 		{Path: "test3.md", RelativePath: "test3.md", Size: 300},
 	}
 
-	// Mock processor function
-	processCount := 0
+	// Mock processor function with atomic counter
+	var processCount int64
 	mockProcessor := func(file FileInfo) ProcessingResult {
-		processCount++
+		atomic.AddInt64(&processCount, 1)
 		return ProcessingResult{
 			File:      file,
 			Success:   true,
@@ -231,8 +232,8 @@ func TestProcessFiles(t *testing.T) {
 		t.Errorf("Expected %d results, got %d", len(files), len(results))
 	}
 
-	if processCount != len(files) {
-		t.Errorf("Expected processor to be called %d times, got %d", len(files), processCount)
+	if atomic.LoadInt64(&processCount) != int64(len(files)) {
+		t.Errorf("Expected processor to be called %d times, got %d", len(files), atomic.LoadInt64(&processCount))
 	}
 
 	// Check all results are successful

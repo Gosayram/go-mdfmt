@@ -20,14 +20,13 @@ GOIMPORTS = $(GOPATH)/bin/goimports
 # Build flags
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 DATE ?= $(shell date -u '+%Y-%m-%d_%H:%M:%S')
-BUILT_BY ?= $(shell git remote get-url origin 2>/dev/null | sed -n 's/.*[:/]\([^/]*\)\/[^/]*\.git.*/\1/p' || git config user.name 2>/dev/null | tr ' ' '_' || unknown)
+BUILT_BY ?= $(shell git remote get-url origin 2>/dev/null | sed -n 's/.*[:/]\([^/]*\)\/[^/]*\.git.*/\1/p' || git config user.name 2>/dev/null | tr ' ' '_' || echo "unknown")
 
 # Linker flags for version information
-LDFLAGS=-ldflags "-X github.com/Gosayram/go-mdfmt/internal/version.Version=$(VERSION) \
+LDFLAGS=-ldflags "-s -w -X github.com/Gosayram/go-mdfmt/internal/version.Version=$(VERSION) \
 				  -X github.com/Gosayram/go-mdfmt/internal/version.Commit=$(COMMIT) \
 				  -X github.com/Gosayram/go-mdfmt/internal/version.Date=$(DATE) \
-				  -X github.com/Gosayram/go-mdfmt/internal/version.BuiltBy=$(BUILT_BY) \
-				  -X github.com/Gosayram/go-mdfmt/internal/version.BuildNumber=$(BUILD_INFO)"
+				  -X github.com/Gosayram/go-mdfmt/internal/version.BuiltBy=$(BUILT_BY)"
 
 # Ensure the output directory exists
 $(OUTPUT_DIR):
@@ -548,4 +547,29 @@ docs-api:
 	@echo "Generating API documentation..."
 	@mkdir -p docs
 	go doc -all ./... > docs/api.md
-	@echo "API documentation generated" 
+	@echo "API documentation generated"
+
+# CI/CD Support
+.PHONY: ci-lint ci-test ci-build ci-release
+
+ci-lint:
+	@echo "Running CI linting checks..."
+	go fmt ./...
+	go vet ./...
+	$(GOLANGCI_LINT) run --timeout=10m
+	$(STATICCHECK) ./...
+	@echo "CI linting completed"
+
+ci-test:
+	@echo "Running CI tests..."
+	go test -v -race -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
+	@echo "CI tests completed"
+
+ci-build:
+	@echo "Running CI build..."
+	CGO_ENABLED=0 go build $(LDFLAGS) -o $(OUTPUT_DIR)/$(BINARY_NAME) ./$(CMD_DIR)
+	@echo "CI build completed"
+
+ci-release: ci-lint ci-test ci-build
+	@echo "CI release pipeline completed" 

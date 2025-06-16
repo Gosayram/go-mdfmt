@@ -17,9 +17,9 @@ const (
 // Build-time variables set by linker flags
 var (
 	Version     = "dev"
-	Commit      = UnknownValue
-	Date        = UnknownValue
-	BuiltBy     = UnknownValue
+	Commit      = "unknown"
+	Date        = "unknown"
+	BuiltBy     = "unknown"
 	BuildNumber = "0"
 )
 
@@ -77,9 +77,9 @@ type BuildInfo struct {
 	Platform  string
 }
 
-// GetBuildInfo returns the current build information
-func GetBuildInfo() BuildInfo {
-	return BuildInfo{
+// Get returns the build information
+func Get() *BuildInfo {
+	return &BuildInfo{
 		Version:   Version,
 		Commit:    Commit,
 		Date:      Date,
@@ -90,22 +90,12 @@ func GetBuildInfo() BuildInfo {
 }
 
 // String returns a formatted version string
-func (b BuildInfo) String() string {
-	if b.Version == "dev" {
-		return fmt.Sprintf("mdfmt %s (%s) built with %s on %s",
-			b.Version, b.Commit, b.GoVersion, b.Platform)
-	}
-	return fmt.Sprintf("mdfmt %s built on %s with %s",
-		b.Version, b.Date, b.GoVersion)
+func (bi *BuildInfo) String() string {
+	return fmt.Sprintf("mdfmt version %s (%s) built on %s by %s using %s for %s",
+		bi.Version, bi.Commit, bi.Date, bi.BuiltBy, bi.GoVersion, bi.Platform)
 }
 
-// Short returns a short version string with version and commit information.
-func (b *BuildInfo) Short() string {
-	if b.Commit == "" {
-		return b.Version
-	}
-	if len(b.Commit) > ShortCommitHashLength {
-		return fmt.Sprintf("%s (%s)", b.Version, b.Commit[:ShortCommitHashLength])
-	}
-	return fmt.Sprintf("%s (%s)", b.Version, b.Commit)
+// Short returns a short version string
+func (bi *BuildInfo) Short() string {
+	return fmt.Sprintf("mdfmt %s", bi.Version)
 }
