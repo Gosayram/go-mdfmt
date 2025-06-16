@@ -38,7 +38,7 @@ const (
 	SetextMaxLevel = 2
 )
 
-// Formatter represents a markdown formatter
+// Formatter represents a markdown formatter interface
 type Formatter interface {
 	// Format formats the given AST according to configuration
 	Format(root parser.Node, cfg *config.Config) error
