@@ -11,6 +11,17 @@ on:
       - 'cmd/**'
       - 'pkg/**'
       - 'internal/**'
+  workflow_dispatch:
+    inputs:
+      force_bump:
+        description: 'Force version bump type (patch/minor/major)'
+        required: false
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
 
 # Set top-level permissions to read-all for security
 # Required write permissions are explicitly set at job level
@@ -40,15 +51,19 @@ jobs:
       - name: Get current version
         id: current_version
         run: |
-          # Get the latest tag, default to v0.0.0 if none exists
-          if git describe --tags --abbrev=0 >/dev/null 2>&1; then
-            LATEST_TAG=$(git describe --tags --abbrev=0)
+          # Sync tags from remote to ensure we have the latest state
+          git fetch --tags
+          
+          # Get the latest tag from remote, default to v0.0.0 if none exists
+          REMOTE_TAGS=$(git ls-remote --tags origin | grep -v '\^{}' | cut -d'/' -f3 | sort -V | tail -1)
+          if [ -n "$REMOTE_TAGS" ]; then
+            LATEST_TAG="$REMOTE_TAGS"
             echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
-            echo "Found existing tag: $LATEST_TAG"
+            echo "Found existing tag on remote: $LATEST_TAG"
           else
             LATEST_TAG="v0.0.0"
             echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
-            echo "No existing tags found, will start from: $LATEST_TAG"
+            echo "No existing tags found on remote, will start from: $LATEST_TAG"
           fi
 
       - name: Determine version bump
@@ -76,11 +91,17 @@ jobs:
           # Default to patch bump
           BUMP_TYPE="patch"
           
-          # Check for breaking changes or major features
-          if echo "$COMMITS" | grep -i -E "(BREAKING|major|breaking change)" > /dev/null; then
-            BUMP_TYPE="major"
-          elif echo "$COMMITS" | grep -i -E "(feat|feature|minor)" > /dev/null; then
-            BUMP_TYPE="minor"
+          # Check if this is a manual dispatch with force_bump
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.force_bump }}" ]; then
+            BUMP_TYPE="${{ github.event.inputs.force_bump }}"
+            echo "Using manual force bump type: $BUMP_TYPE"
+          else
+            # Check for breaking changes or major features in commit messages
+            if echo "$COMMITS" | grep -i -E "(BREAKING|major|breaking change)" > /dev/null; then
+              BUMP_TYPE="major"
+            elif echo "$COMMITS" | grep -i -E "(feat|feature|minor)" > /dev/null; then
+              BUMP_TYPE="minor"
+            fi
           fi
           
           echo "SKIP_TAG=false" >> $GITHUB_ENV
@@ -139,12 +160,13 @@ jobs:
             exit 0
           fi
           
-          if git rev-parse "${{ env.NEW_VERSION }}" >/dev/null 2>&1; then
+          # Check if tag exists on remote
+          if git ls-remote --tags origin | grep -q "refs/tags/${{ env.NEW_VERSION }}$"; then
             echo "TAG_EXISTS=true" >> $GITHUB_ENV
-            echo "Tag ${{ env.NEW_VERSION }} already exists"
+            echo "Tag ${{ env.NEW_VERSION }} already exists on remote"
           else
             echo "TAG_EXISTS=false" >> $GITHUB_ENV
-            echo "Tag ${{ env.NEW_VERSION }} does not exist, will create"
+            echo "Tag ${{ env.NEW_VERSION }} does not exist on remote, will create"
           fi
 
       - name: Update .release-version file
