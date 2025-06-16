@@ -81,10 +81,11 @@ jobs:
           fi
           echo "$COMMITS"
           
-          # Check if we should skip tagging
-          if echo "$COMMITS" | grep -i "\[skip-tag\]" > /dev/null; then
+          # Check if we should skip tagging (only check the latest commit)
+          LATEST_COMMIT=$(git log -1 --oneline)
+          if echo "$LATEST_COMMIT" | grep -i "\[skip-tag\]" > /dev/null; then
             echo "SKIP_TAG=true" >> $GITHUB_ENV
-            echo "Skipping tag creation due to [skip-tag] in commit message"
+            echo "Skipping tag creation due to [skip-tag] in latest commit message"
             exit 0
           fi
           
