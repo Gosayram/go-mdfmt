@@ -152,10 +152,11 @@ func (f *HeadingFormatter) Format(node parser.Node, cfg *config.Config) error {
 	}
 
 	// Apply heading style preferences
-	if cfg.Heading.Style == AtxHeadingStyle {
+	switch cfg.Heading.Style {
+	case AtxHeadingStyle:
 		// Ensure ATX-style headers (#, ##, ###, etc.)
 		heading.Style = AtxHeadingStyle
-	} else if cfg.Heading.Style == SetextHeadingStyle {
+	case SetextHeadingStyle:
 		// Use setext style for levels 1 and 2, ATX for others
 		if heading.Level <= SetextMaxLevel {
 			heading.Style = SetextHeadingStyle
@@ -372,9 +373,10 @@ func (f *CodeBlockFormatter) Format(node parser.Node, cfg *config.Config) error 
 	}
 
 	// Apply fence style preferences
-	if cfg.Code.FenceStyle == "```" {
+	switch cfg.Code.FenceStyle {
+	case "```":
 		code.Fence = "```"
-	} else if cfg.Code.FenceStyle == "~~~" {
+	case "~~~":
 		code.Fence = "~~~"
 	}
 
