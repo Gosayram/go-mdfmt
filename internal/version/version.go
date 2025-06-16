@@ -7,6 +7,7 @@ import (
 	"strings"
 )
 
+// Constants
 const (
 	// ShortCommitHashLength defines the length for shortened commit hashes
 	ShortCommitHashLength = 7
