@@ -84,11 +84,11 @@ func (p *GoldmarkParser) convertNode(n ast.Node, source []byte) Node {
 // convertHeading converts a heading node
 func (p *GoldmarkParser) convertHeading(n ast.Node, source []byte) Node {
 	heading := n.(*ast.Heading)
-	text := p.extractText(n, source)
-	text = strings.Join(strings.Fields(text), " ")
+	headingText := p.extractText(n, source)
+	headingText = strings.Join(strings.Fields(headingText), " ")
 	return &Heading{
 		Level: heading.Level,
-		Text:  strings.TrimSpace(text),
+		Text:  strings.TrimSpace(headingText),
 		Style: "atx",
 	}
 }
@@ -174,10 +174,10 @@ func (p *GoldmarkParser) convertText(n ast.Node, source []byte) Node {
 
 // convertGenericNode converts other node types to text
 func (p *GoldmarkParser) convertGenericNode(n ast.Node, source []byte) Node {
-	text := p.extractText(n, source)
-	if text != "" {
+	content := p.extractText(n, source)
+	if content != "" {
 		return &Text{
-			Content: text,
+			Content: content,
 		}
 	}
 	return nil
@@ -226,8 +226,8 @@ func (p *GoldmarkParser) extractText(n ast.Node, source []byte) string {
 func (p *GoldmarkParser) extractSimpleText(n ast.Node, source []byte) string {
 	switch n.Kind() {
 	case ast.KindText:
-		text := n.(*ast.Text)
-		return string(text.Segment.Value(source))
+		textNode := n.(*ast.Text)
+		return string(textNode.Segment.Value(source))
 	case ast.KindString:
 		str := n.(*ast.String)
 		return string(str.Value)
@@ -287,8 +287,8 @@ func (p *GoldmarkParser) extractWithInlineFormatting(n ast.Node, source []byte) 
 
 	switch n.Kind() {
 	case ast.KindText:
-		text := n.(*ast.Text)
-		buf.Write(text.Segment.Value(source))
+		textNode := n.(*ast.Text)
+		buf.Write(textNode.Segment.Value(source))
 	case ast.KindEmphasis:
 		p.extractEmphasisText(n, source, &buf)
 	case ast.KindCodeSpan:
@@ -377,8 +377,8 @@ func (p *GoldmarkParser) extractTextRecursive(n ast.Node, source []byte) string 
 
 	switch n.Kind() {
 	case ast.KindText:
-		text := n.(*ast.Text)
-		buf.Write(text.Segment.Value(source))
+		textNode := n.(*ast.Text)
+		buf.Write(textNode.Segment.Value(source))
 		return buf.String()
 	case ast.KindString:
 		str := n.(*ast.String)
