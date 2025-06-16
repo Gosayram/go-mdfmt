@@ -10,6 +10,7 @@ import (
 	"github.com/Gosayram/go-mdfmt/pkg/parser"
 )
 
+// Constants
 const (
 	// SecondHeadingLevel represents heading level 2
 	SecondHeadingLevel = 2

@@ -331,7 +331,7 @@ lint:
 		echo "Linter completed!"; \
 	else \
 		echo "golangci-lint is not installed. Installing..."; \
-		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
+		go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest; \
 		echo "Running linter..."; \
 		$(GOLANGCI_LINT) run; \
 		echo "Linter completed!"; \
