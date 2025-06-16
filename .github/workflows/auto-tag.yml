@@ -112,10 +112,37 @@ jobs:
       - name: Calculate new version
         id: new_version
         run: |
-          # Parse current version
-          CURRENT_VERSION="${{ env.LATEST_TAG }}"
-          # Remove 'v' prefix if present
-          CURRENT_VERSION=${CURRENT_VERSION#v}
+          # Get current version from .release-version file (authoritative source)
+          if [ -f .release-version ]; then
+            FILE_VERSION=$(cat .release-version | tr -d '\n' | sed 's/^v//')
+            echo "Current version from .release-version: $FILE_VERSION"
+          else
+            FILE_VERSION="0.0.0"
+            echo "No .release-version file found, using default: $FILE_VERSION"
+          fi
+          
+          # Also check latest git tag for comparison
+          TAG_VERSION="${{ env.LATEST_TAG }}"
+          TAG_VERSION=${TAG_VERSION#v}
+          echo "Latest git tag version: $TAG_VERSION"
+          
+          # Use the higher version between file and tag
+          if [ "$FILE_VERSION" != "0.0.0" ] && [ "$TAG_VERSION" != "0.0.0" ]; then
+            # Compare versions and use the higher one
+            if printf '%s\n%s\n' "$FILE_VERSION" "$TAG_VERSION" | sort -V | tail -1 | grep -q "^$FILE_VERSION$"; then
+              CURRENT_VERSION="$FILE_VERSION"
+              echo "Using file version as current: $CURRENT_VERSION"
+            else
+              CURRENT_VERSION="$TAG_VERSION"
+              echo "Using tag version as current: $CURRENT_VERSION"
+            fi
+          elif [ "$FILE_VERSION" != "0.0.0" ]; then
+            CURRENT_VERSION="$FILE_VERSION"
+            echo "Using file version as current: $CURRENT_VERSION"
+          else
+            CURRENT_VERSION="$TAG_VERSION"
+            echo "Using tag version as current: $CURRENT_VERSION"
+          fi
           
           # Split version into parts
           IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
@@ -125,29 +152,24 @@ jobs:
           MINOR=${MINOR:-0}
           PATCH=${PATCH:-0}
           
-          # If starting from v0.0.0 (no previous tags), start with v0.1.0
-          if [ "${{ env.LATEST_TAG }}" = "v0.0.0" ]; then
-            NEW_VERSION="v0.1.0"
-            echo "Starting from first version: $NEW_VERSION"
-          else
-            # Bump version based on type
-            case "${{ env.BUMP_TYPE }}" in
-              "major")
-                MAJOR=$((MAJOR + 1))
-                MINOR=0
-                PATCH=0
-                ;;
-              "minor")
-                MINOR=$((MINOR + 1))
-                PATCH=0
-                ;;
-              "patch")
-                PATCH=$((PATCH + 1))
-                ;;
-            esac
-            NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
-            echo "Bumped version: $NEW_VERSION (type: ${{ env.BUMP_TYPE }})"
-          fi
+          # Bump version based on type
+          case "${{ env.BUMP_TYPE }}" in
+            "major")
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            "minor")
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            "patch")
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+          
+          NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "Bumped version from $CURRENT_VERSION to $NEW_VERSION (type: ${{ env.BUMP_TYPE }})"
           
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
 
@@ -177,18 +199,33 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Update .release-version file with new version (without 'v' prefix)
-          echo "${NEW_VERSION#v}" > .release-version
+          # Get current version from file
+          CURRENT_FILE_VERSION=""
+          if [ -f .release-version ]; then
+            CURRENT_FILE_VERSION=$(cat .release-version | tr -d '\n')
+          fi
           
-          # Commit and push the updated version file
-          git add .release-version
-          git commit -m "chore: update version to ${NEW_VERSION#v} [skip-tag]"
-          git push origin main
+          NEW_FILE_VERSION="${NEW_VERSION#v}"
           
-          echo "Updated .release-version to: ${NEW_VERSION#v}"
+          # Check if version actually changed
+          if [ "$CURRENT_FILE_VERSION" = "$NEW_FILE_VERSION" ]; then
+            echo "Version $NEW_FILE_VERSION is already in .release-version file, no update needed"
+            echo "NEEDS_VERSION_UPDATE=false" >> $GITHUB_ENV
+          else
+            echo "Updating .release-version from '$CURRENT_FILE_VERSION' to '$NEW_FILE_VERSION'"
+            echo "$NEW_FILE_VERSION" > .release-version
+            
+            # Commit and push the updated version file
+            git add .release-version
+            git commit -m "chore: update version to $NEW_FILE_VERSION [skip-tag]"
+            git push origin main
+            
+            echo "Updated .release-version to: $NEW_FILE_VERSION"
+            echo "NEEDS_VERSION_UPDATE=true" >> $GITHUB_ENV
+          fi
 
       - name: Create and push tag
-        if: env.TAG_EXISTS == 'false' && env.SKIP_TAG == 'false'
+        if: env.TAG_EXISTS == 'false' && env.SKIP_TAG == 'false' && env.NEEDS_VERSION_UPDATE != 'false'
         run: |
           # Create annotated tag with commit info
           COMMIT_MSG=$(git log -1 --pretty=format:"%s")
@@ -200,8 +237,19 @@ jobs:
           echo "Created and pushed tag: ${{ env.NEW_VERSION }}"
 
       - name: Tag created successfully
-        if: env.TAG_EXISTS == 'false' && env.SKIP_TAG == 'false'
+        if: env.TAG_EXISTS == 'false' && env.SKIP_TAG == 'false' && env.NEEDS_VERSION_UPDATE != 'false'
         run: |
           echo "Tag ${{ env.NEW_VERSION }} created successfully"
           echo "Release workflow will be triggered automatically"
-          echo "Binaries will be available in ~5-10 minutes" 
+          echo "Binaries will be available in ~5-10 minutes"
+
+      - name: No changes needed
+        if: env.TAG_EXISTS == 'true' || env.SKIP_TAG == 'true' || env.NEEDS_VERSION_UPDATE == 'false'
+        run: |
+          if [ "${{ env.SKIP_TAG }}" = "true" ]; then
+            echo "Skipping tag creation due to [skip-tag] flag"
+          elif [ "${{ env.TAG_EXISTS }}" = "true" ]; then
+            echo "Tag ${{ env.NEW_VERSION }} already exists"
+          elif [ "${{ env.NEEDS_VERSION_UPDATE }}" = "false" ]; then
+            echo "Version ${{ env.NEW_VERSION }} is already current, no tag needed"
+          fi 
