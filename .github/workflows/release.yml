@@ -11,16 +11,19 @@ on:
         required: true
         default: 'v0.1.0'
 
-permissions:
-  contents: read
+# Set top-level permissions to read-all for security
+# Required write permissions are explicitly set at job level
+permissions: read-all
 
 jobs:
   build_and_test:
     name: Build and Test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read  # Required to checkout code
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        uses: step-security/harden-runner@002fdce3c6a235733a90a27c80493a3241e56863 # v2.12.1
         with:
           disable-sudo: true
           egress-policy: audit
@@ -36,7 +39,7 @@ jobs:
           echo "GOVERSION=$GOVERSION" >> $GITHUB_ENV
 
       - name: Set up Go
-        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.4.0
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
           go-version: ${{ env.GOVERSION }}
 
@@ -64,8 +67,9 @@ jobs:
     needs: build_and_test
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      id-token: write  # Required for Cosign
+      contents: read      # Required to checkout code
+      id-token: write     # Required for Cosign keyless signing
+      actions: read       # Required to upload artifacts
     strategy:
       matrix:
         include:
@@ -83,7 +87,7 @@ jobs:
             goarch: arm64
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        uses: step-security/harden-runner@002fdce3c6a235733a90a27c80493a3241e56863 # v2.12.1
         with:
           disable-sudo: true
           egress-policy: audit
@@ -97,7 +101,7 @@ jobs:
           echo "GOVERSION=$GOVERSION" >> $GITHUB_ENV
 
       - name: Set up Go
-        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.4.0
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
           go-version: ${{ env.GOVERSION }}
 
@@ -133,7 +137,7 @@ jobs:
           echo "BINARY_NAME=${BINARY_NAME}" >> $GITHUB_ENV
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
+        uses: sigstore/cosign-installer@3454372f43399081ed03b604cb2d021dabca52bb # v3.8.2
         with:
           cosign-release: 'v2.4.3'
 
@@ -174,7 +178,7 @@ jobs:
           EOF
 
       - name: Upload artifact
-        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: mdfmt-${{ matrix.goos }}-${{ matrix.goarch }}
           path: |
@@ -191,10 +195,11 @@ jobs:
     needs: build_binaries
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write     # Required to create release and upload assets
+      actions: read       # Required to download artifacts
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        uses: step-security/harden-runner@002fdce3c6a235733a90a27c80493a3241e56863 # v2.12.1
         with:
           disable-sudo: true
           egress-policy: audit
@@ -205,7 +210,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
+        uses: sigstore/cosign-installer@3454372f43399081ed03b604cb2d021dabca52bb # v3.8.2
         with:
           cosign-release: 'v2.4.3'
 
@@ -231,7 +236,7 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Download all artifacts
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           path: ./artifacts
 
@@ -285,7 +290,7 @@ jobs:
           echo '```' >> changelog.md
 
       - name: Create Release
-        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2.2.1
+        uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2.3.2
         with:
           tag_name: ${{ env.VERSION }}
           name: Release ${{ env.VERSION }}
@@ -305,11 +310,11 @@ jobs:
     needs: build_and_test
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      packages: write
+      contents: read      # Required to checkout code
+      packages: write     # Required to push Docker images to GHCR
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        uses: step-security/harden-runner@002fdce3c6a235733a90a27c80493a3241e56863 # v2.12.1
         with:
           disable-sudo: true
           egress-policy: audit
@@ -318,10 +323,10 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -339,7 +344,7 @@ jobs:
           echo "VERSION_NO_V=${VERSION#v}" >> $GITHUB_ENV
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6debcef730109a75 # v6.9.0
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
           context: .
           platforms: linux/amd64,linux/arm64
