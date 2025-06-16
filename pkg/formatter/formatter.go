@@ -10,6 +10,7 @@ import (
 	"github.com/Gosayram/go-mdfmt/pkg/parser"
 )
 
+// Constants
 const (
 	// HeadingFormatterPriority defines the priority for heading formatting (higher runs first)
 	HeadingFormatterPriority = 100

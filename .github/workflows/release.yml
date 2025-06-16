@@ -217,6 +217,8 @@ jobs:
           cosign-release: 'v2.4.3'
 
       - name: Generate public key
+        env:
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
         run: |
           # Create temporary private key file from secret
           echo "${{ secrets.COSIGN_PRIVATE_KEY }}" > cosign.key
@@ -344,6 +346,10 @@ jobs:
           fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "VERSION_NO_V=${VERSION#v}" >> $GITHUB_ENV
+          
+          # Generate lowercase repository owner for Docker tags
+          REPO_OWNER_LOWERCASE=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "REPO_OWNER_LOWERCASE=$REPO_OWNER_LOWERCASE" >> $GITHUB_ENV
 
       - name: Build and push Docker image
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
@@ -352,8 +358,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:${{ env.VERSION }}
-            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ env.REPO_OWNER_LOWERCASE }}/go-mdfmt:${{ env.VERSION }}
+            ghcr.io/${{ env.REPO_OWNER_LOWERCASE }}/go-mdfmt:latest
           labels: |
             org.opencontainers.image.title=mdfmt
             org.opencontainers.image.description="Fast, reliable Markdown formatter"

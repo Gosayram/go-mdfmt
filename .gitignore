@@ -90,3 +90,7 @@ coverage.out
 coverage.html
 benchmark-report.md
 .release-version
+
+# Cosign files
+cosign.key
+cosign.pub
