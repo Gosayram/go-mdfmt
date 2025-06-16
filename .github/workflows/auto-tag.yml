@@ -41,16 +41,29 @@ jobs:
         id: current_version
         run: |
           # Get the latest tag, default to v0.0.0 if none exists
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
-          echo "Current latest tag: $LATEST_TAG"
+          if git describe --tags --abbrev=0 >/dev/null 2>&1; then
+            LATEST_TAG=$(git describe --tags --abbrev=0)
+            echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
+            echo "Found existing tag: $LATEST_TAG"
+          else
+            LATEST_TAG="v0.0.0"
+            echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
+            echo "No existing tags found, will start from: $LATEST_TAG"
+          fi
 
       - name: Determine version bump
         id: version_bump
         run: |
           # Check commit messages for version bump indicators
-          COMMITS=$(git log ${{ env.LATEST_TAG }}..HEAD --oneline)
-          echo "Commits since last tag:"
+          if [ "${{ env.LATEST_TAG }}" = "v0.0.0" ]; then
+            # No tags exist, use all commits
+            COMMITS=$(git log --oneline)
+            echo "No previous tags found, analyzing all commits:"
+          else
+            # Tags exist, check commits since last tag
+            COMMITS=$(git log ${{ env.LATEST_TAG }}..HEAD --oneline)
+            echo "Commits since last tag ${{ env.LATEST_TAG }}:"
+          fi
           echo "$COMMITS"
           
           # Check if we should skip tagging
@@ -90,29 +103,42 @@ jobs:
           MINOR=${MINOR:-0}
           PATCH=${PATCH:-0}
           
-          # Bump version based on type
-          case "${{ env.BUMP_TYPE }}" in
-            "major")
-              MAJOR=$((MAJOR + 1))
-              MINOR=0
-              PATCH=0
-              ;;
-            "minor")
-              MINOR=$((MINOR + 1))
-              PATCH=0
-              ;;
-            "patch")
-              PATCH=$((PATCH + 1))
-              ;;
-          esac
+          # If starting from v0.0.0 (no previous tags), start with v0.1.0
+          if [ "${{ env.LATEST_TAG }}" = "v0.0.0" ]; then
+            NEW_VERSION="v0.1.0"
+            echo "Starting from first version: $NEW_VERSION"
+          else
+            # Bump version based on type
+            case "${{ env.BUMP_TYPE }}" in
+              "major")
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                PATCH=0
+                ;;
+              "minor")
+                MINOR=$((MINOR + 1))
+                PATCH=0
+                ;;
+              "patch")
+                PATCH=$((PATCH + 1))
+                ;;
+            esac
+            NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+            echo "Bumped version: $NEW_VERSION (type: ${{ env.BUMP_TYPE }})"
+          fi
           
-          NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-          echo "New version: $NEW_VERSION"
 
       - name: Check if tag already exists
         id: check_tag
         run: |
+          # Skip check if we're supposed to skip tagging
+          if [ "${{ env.SKIP_TAG }}" = "true" ]; then
+            echo "TAG_EXISTS=true" >> $GITHUB_ENV
+            echo "Skipping tag creation"
+            exit 0
+          fi
+          
           if git rev-parse "${{ env.NEW_VERSION }}" >/dev/null 2>&1; then
             echo "TAG_EXISTS=true" >> $GITHUB_ENV
             echo "Tag ${{ env.NEW_VERSION }} already exists"
