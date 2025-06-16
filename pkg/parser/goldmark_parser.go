@@ -12,6 +12,7 @@ import (
 	"github.com/yuin/goldmark/text"
 )
 
+// Constants
 const (
 	// StrongEmphasisLevel defines the level for strong emphasis (**)
 	StrongEmphasisLevel = 2
