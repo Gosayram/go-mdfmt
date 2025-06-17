@@ -266,6 +266,7 @@ func TestMinFunction(t *testing.T) {
 		{-1, 5, -1},
 	}
 
+	// Test min function
 	for _, tt := range tests {
 		result := min(tt.a, tt.b)
 		if result != tt.expected {

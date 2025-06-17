@@ -23,7 +23,7 @@ The release process is fully automated through GitHub Actions and consists of se
 Version information is managed through the `.release-version` file in the repository root:
 
 ```
-v0.2.2
+0.2.6
 ```
 
 The build system automatically injects version information at compile time:
@@ -93,16 +93,16 @@ sudo mv cosign /usr/local/bin/
 **Step 2: Download Release Files**
 ```bash
 # Download binary (example for Linux AMD64)
-curl -L -o mdfmt https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.2/mdfmt-0.2.2-linux-amd64
+curl -L -o mdfmt https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.6/mdfmt-0.2.6-linux-amd64
 
 # Download signature
-curl -L -o mdfmt.sig https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.2/mdfmt-0.2.2-linux-amd64.sig
+curl -L -o mdfmt.sig https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.6/mdfmt-0.2.6-linux-amd64.sig
 
 # Download public key
-curl -L -o cosign.pub https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.2/cosign.pub
+curl -L -o cosign.pub https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.6/cosign.pub
 
 # Download checksums (optional)
-curl -L -o mdfmt.sha256 https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.2/mdfmt-0.2.2-linux-amd64.sha256
+curl -L -o mdfmt.sha256 https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.6/mdfmt-0.2.6-linux-amd64.sha256
 ```
 
 **Step 3: Verify Signature**
@@ -204,16 +204,30 @@ Release notes are automatically generated with comprehensive information:
 
 **Changelog Content**:
 - Commit history since last release
+- Structured release notes from CHANGELOG.md (when available)
 - Installation instructions for all platforms
 - Security verification instructions
 - Asset download links
 
-**Changelog Format**:
+**Enhanced Changelog Format**:
 ```markdown
 ## Changes
-### Commits since v0.2.0:
+### Commits since v0.2.5:
 - fix: correct Cosign verification instructions (296ba73)
 - feat: add new formatting option (abc1234)
+
+## Release Notes
+### Fixed
+- Corrected semantic versioning logic in auto-tag workflow
+- Fixed incorrect version jumps by implementing proper increment rules
+
+### Changed
+- Implemented custom versioning scheme with 9-limit logic
+- Enhanced auto-tag workflow with detailed logging
+
+### Added
+- Custom versioning logic with examples
+- Automatic CHANGELOG.md extraction for release notes
 
 ## Installation
 ### Linux/macOS:
@@ -225,6 +239,13 @@ Release notes are automatically generated with comprehensive information:
 ### Verification:
 [Security verification instructions]
 ```
+
+**CHANGELOG.md Integration**:
+The release workflow now automatically extracts structured information from CHANGELOG.md:
+- Searches for section matching current version (e.g., `## [0.2.6]`)
+- Includes Fixed, Changed, Added, and other standard sections
+- Falls back to commit-based changelog if no CHANGELOG.md entry exists
+- Provides both technical commit history and user-friendly release notes
 
 ## Development Release Process
 
@@ -243,19 +264,46 @@ Release notes are automatically generated with comprehensive information:
 
 ### Version Bumping
 
-**Semantic Versioning Guidelines**:
-- **Patch** (0.0.X): Bug fixes, documentation updates
-- **Minor** (0.X.0): New features, backward-compatible changes
-- **Major** (X.0.0): Breaking changes, API modifications
+**Custom Semantic Versioning with 9-Limit Logic**:
+
+go-mdfmt implements a custom versioning scheme where each component has a limit of 9:
+- **Patch** (0.0.X): Bug fixes, documentation updates (0.2.0 → 0.2.1 → ... → 0.2.9)
+- **Minor** (0.X.0): New features, backward-compatible changes (0.2.9 → 0.3.0)
+- **Major** (X.0.0): Breaking changes, API modifications (0.9.9 → 1.0.0)
+
+**Version Increment Examples**:
+```
+# Patch increments
+0.2.4 → 0.2.5 → 0.2.6 → ... → 0.2.9
+
+# When patch reaches 9, bump minor and reset patch
+0.2.9 → 0.3.0
+
+# When minor reaches 9 and patch is at 9, bump major
+0.9.9 → 1.0.0
+
+# Manual minor bump (skips patch limit check)
+0.2.4 → 0.3.0 (via workflow_dispatch with minor)
+
+# Manual major bump
+0.2.4 → 1.0.0 (via workflow_dispatch with major)
+```
+
+**Automated Version Logic**:
+The auto-tag workflow implements this logic automatically:
+- Checks current patch/minor values before incrementing
+- Automatically cascades version bumps when limits are reached
+- Logs version bump decisions for debugging
+- Prevents incorrect version jumps (e.g., 0.2.4 → 0.3.0 for patch bump)
 
 **Manual Version Bumping**:
 ```bash
-# Update version file
-echo "v0.2.2" > .release-version
+# Update version file (note: no 'v' prefix in file)
+echo "0.2.6" > .release-version
 
 # Commit and push
 git add .release-version
-git commit -m "chore: bump version to v0.2.2"
+git commit -m "chore: bump version to 0.2.6"
 git push origin main
 ```
 
@@ -282,37 +330,37 @@ mdfmt --version
 Each release provides the following file structure:
 
 ```
-Release v0.2.2/
-├── mdfmt-0.2.2-linux-amd64           # Linux AMD64 binary
-├── mdfmt-0.2.2-linux-amd64.sig       # Cosign signature
-├── mdfmt-0.2.2-linux-amd64.sha256    # SHA256 checksum
-├── mdfmt-0.2.2-linux-amd64.sha512    # SHA512 checksum
-├── mdfmt-0.2.2-linux-amd64.verify    # Verification instructions
-├── mdfmt-0.2.2-linux-arm64           # Linux ARM64 binary
-├── mdfmt-0.2.2-linux-arm64.sig       # Cosign signature
-├── mdfmt-0.2.2-linux-arm64.sha256    # SHA256 checksum
-├── mdfmt-0.2.2-linux-arm64.sha512    # SHA512 checksum
-├── mdfmt-0.2.2-linux-arm64.verify    # Verification instructions
-├── mdfmt-0.2.2-darwin-amd64          # macOS AMD64 binary
-├── mdfmt-0.2.2-darwin-amd64.sig      # Cosign signature
-├── mdfmt-0.2.2-darwin-amd64.sha256   # SHA256 checksum
-├── mdfmt-0.2.2-darwin-amd64.sha512   # SHA512 checksum
-├── mdfmt-0.2.2-darwin-amd64.verify   # Verification instructions
-├── mdfmt-0.2.2-darwin-arm64          # macOS ARM64 binary
-├── mdfmt-0.2.2-darwin-arm64.sig      # Cosign signature
-├── mdfmt-0.2.2-darwin-arm64.sha256   # SHA256 checksum
-├── mdfmt-0.2.2-darwin-arm64.sha512   # SHA512 checksum
-├── mdfmt-0.2.2-darwin-arm64.verify   # Verification instructions
-├── mdfmt-0.2.2-windows-amd64.exe     # Windows AMD64 binary
-├── mdfmt-0.2.2-windows-amd64.exe.sig # Cosign signature
-├── mdfmt-0.2.2-windows-amd64.exe.sha256 # SHA256 checksum
-├── mdfmt-0.2.2-windows-amd64.exe.sha512 # SHA512 checksum
-├── mdfmt-0.2.2-windows-amd64.exe.verify # Verification instructions
-├── mdfmt-0.2.2-windows-arm64.exe     # Windows ARM64 binary
-├── mdfmt-0.2.2-windows-arm64.exe.sig # Cosign signature
-├── mdfmt-0.2.2-windows-arm64.exe.sha256 # SHA256 checksum
-├── mdfmt-0.2.2-windows-arm64.exe.sha512 # SHA512 checksum
-├── mdfmt-0.2.2-windows-arm64.exe.verify # Verification instructions
+Release v0.2.6/
+├── mdfmt-0.2.6-linux-amd64           # Linux AMD64 binary
+├── mdfmt-0.2.6-linux-amd64.sig       # Cosign signature
+├── mdfmt-0.2.6-linux-amd64.sha256    # SHA256 checksum
+├── mdfmt-0.2.6-linux-amd64.sha512    # SHA512 checksum
+├── mdfmt-0.2.6-linux-amd64.verify    # Verification instructions
+├── mdfmt-0.2.6-linux-arm64           # Linux ARM64 binary
+├── mdfmt-0.2.6-linux-arm64.sig       # Cosign signature
+├── mdfmt-0.2.6-linux-arm64.sha256    # SHA256 checksum
+├── mdfmt-0.2.6-linux-arm64.sha512    # SHA512 checksum
+├── mdfmt-0.2.6-linux-arm64.verify    # Verification instructions
+├── mdfmt-0.2.6-darwin-amd64          # macOS AMD64 binary
+├── mdfmt-0.2.6-darwin-amd64.sig      # Cosign signature
+├── mdfmt-0.2.6-darwin-amd64.sha256   # SHA256 checksum
+├── mdfmt-0.2.6-darwin-amd64.sha512   # SHA512 checksum
+├── mdfmt-0.2.6-darwin-amd64.verify   # Verification instructions
+├── mdfmt-0.2.6-darwin-arm64          # macOS ARM64 binary
+├── mdfmt-0.2.6-darwin-arm64.sig      # Cosign signature
+├── mdfmt-0.2.6-darwin-arm64.sha256   # SHA256 checksum
+├── mdfmt-0.2.6-darwin-arm64.sha512   # SHA512 checksum
+├── mdfmt-0.2.6-darwin-arm64.verify   # Verification instructions
+├── mdfmt-0.2.6-windows-amd64.exe     # Windows AMD64 binary
+├── mdfmt-0.2.6-windows-amd64.exe.sig # Cosign signature
+├── mdfmt-0.2.6-windows-amd64.exe.sha256 # SHA256 checksum
+├── mdfmt-0.2.6-windows-amd64.exe.sha512 # SHA512 checksum
+├── mdfmt-0.2.6-windows-amd64.exe.verify # Verification instructions
+├── mdfmt-0.2.6-windows-arm64.exe     # Windows ARM64 binary
+├── mdfmt-0.2.6-windows-arm64.exe.sig # Cosign signature
+├── mdfmt-0.2.6-windows-arm64.exe.sha256 # SHA256 checksum
+├── mdfmt-0.2.6-windows-arm64.exe.sha512 # SHA512 checksum
+├── mdfmt-0.2.6-windows-arm64.exe.verify # Verification instructions
 ├── cosign.pub                         # Public key for verification
 ├── Source code (zip)                  # Automated source archive
 └── Source code (tar.gz)               # Automated source archive
@@ -324,7 +372,7 @@ The release workflow includes Docker image building and publishing:
 
 **Docker Images**:
 - Registry: `ghcr.io/gosayram/go-mdfmt`
-- Tags: `latest`, `v0.2.2`, `0.2.2`
+- Tags: `latest`, `v0.2.6`, `0.2.6`
 - Multi-architecture support (AMD64, ARM64)
 
 **Docker Usage**:

@@ -34,21 +34,21 @@ Download the latest binary from the [releases page](https://github.com/Gosayram/
 
 **Linux:**
 ```bash
-curl -L -o mdfmt https://github.com/Gosayram/go-mdfmt/releases/latest/download/mdfmt-0.2.2-linux-amd64
+curl -L -o mdfmt https://github.com/Gosayram/go-mdfmt/releases/latest/download/mdfmt-0.2.6-linux-amd64
 chmod +x mdfmt
 sudo mv mdfmt /usr/local/bin/
 ```
 
 **macOS:**
 ```bash
-curl -L -o mdfmt https://github.com/Gosayram/go-mdfmt/releases/latest/download/mdfmt-0.2.2-darwin-arm64
+curl -L -o mdfmt https://github.com/Gosayram/go-mdfmt/releases/latest/download/mdfmt-0.2.6-darwin-arm64
 chmod +x mdfmt
 sudo mv mdfmt /usr/local/bin/
 ```
 
 **Windows:**
 ```powershell
-curl -L -o mdfmt.exe https://github.com/Gosayram/go-mdfmt/releases/latest/download/mdfmt-0.2.2-windows-amd64.exe
+curl -L -o mdfmt.exe https://github.com/Gosayram/go-mdfmt/releases/latest/download/mdfmt-0.2.6-windows-amd64.exe
 ```
 
 ### From Source
@@ -260,7 +260,7 @@ jobs:
       
       - name: Download mdfmt
         run: |
-          curl -L -o mdfmt https://github.com/Gosayram/go-mdfmt/releases/latest/download/mdfmt-0.2.2-linux-amd64
+          curl -L -o mdfmt https://github.com/Gosayram/go-mdfmt/releases/latest/download/mdfmt-0.2.6-linux-amd64
           chmod +x mdfmt
           sudo mv mdfmt /usr/local/bin/
       
@@ -340,15 +340,15 @@ All binaries are signed with Cosign for supply chain security:
 
 ```bash
 # Download release files
-curl -L -o mdfmt https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.2/mdfmt-0.2.2-linux-amd64
-curl -L -o mdfmt.sig https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.2/mdfmt-0.2.2-linux-amd64.sig
-curl -L -o cosign.pub https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.2/cosign.pub
+curl -L -o mdfmt https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.6/mdfmt-0.2.6-linux-amd64
+curl -L -o mdfmt.sig https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.6/mdfmt-0.2.6-linux-amd64.sig
+curl -L -o cosign.pub https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.6/cosign.pub
 
 # Verify signature
 cosign verify-blob --key cosign.pub --signature mdfmt.sig mdfmt
 
 # Verify checksum
-curl -L -o mdfmt.sha256 https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.2/mdfmt-0.2.2-linux-amd64.sha256
+curl -L -o mdfmt.sha256 https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.6/mdfmt-0.2.6-linux-amd64.sha256
 sha256sum -c mdfmt.sha256
 ```
 

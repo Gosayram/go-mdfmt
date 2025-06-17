@@ -152,7 +152,10 @@ jobs:
           MINOR=${MINOR:-0}
           PATCH=${PATCH:-0}
           
-          # Bump version based on type
+          # Custom versioning logic with 9-limit per component
+          # Rules: when component reaches 9, bump next level and reset
+          # Example: 0.1.9 -> 0.2.0, 0.9.9 -> 1.0.0
+          
           case "${{ env.BUMP_TYPE }}" in
             "major")
               MAJOR=$((MAJOR + 1))
@@ -160,11 +163,34 @@ jobs:
               PATCH=0
               ;;
             "minor")
-              MINOR=$((MINOR + 1))
-              PATCH=0
+              if [ "$MINOR" -ge 9 ]; then
+                # Minor reached limit, bump major
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                PATCH=0
+                echo "Minor version reached limit (9), bumping major: $MAJOR.0.0"
+              else
+                MINOR=$((MINOR + 1))
+                PATCH=0
+              fi
               ;;
             "patch")
-              PATCH=$((PATCH + 1))
+              if [ "$PATCH" -ge 9 ]; then
+                # Patch reached limit, bump minor
+                if [ "$MINOR" -ge 9 ]; then
+                  # Minor also at limit, bump major
+                  MAJOR=$((MAJOR + 1))
+                  MINOR=0
+                  PATCH=0
+                  echo "Patch and minor versions reached limit (9), bumping major: $MAJOR.0.0"
+                else
+                  MINOR=$((MINOR + 1))
+                  PATCH=0
+                  echo "Patch version reached limit (9), bumping minor: $MAJOR.$MINOR.0"
+                fi
+              else
+                PATCH=$((PATCH + 1))
+              fi
               ;;
           esac
           
