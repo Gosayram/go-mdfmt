@@ -248,17 +248,44 @@ jobs:
           echo "## Changes" > changelog.md
           echo "" >> changelog.md
           
-          # Get commits since last tag
-          LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          if [ -n "$LAST_TAG" ]; then
+          # Get current tag and find previous tag properly
+          CURRENT_TAG="${{ env.VERSION }}"
+          echo "Current release tag: $CURRENT_TAG"
+          
+          # Get all tags sorted by version and find the previous one
+          LAST_TAG=$(git tag -l | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -2 | head -1 2>/dev/null || echo "")
+          
+          if [ -n "$LAST_TAG" ] && [ "$LAST_TAG" != "$CURRENT_TAG" ]; then
             echo "### Commits since $LAST_TAG:" >> changelog.md
-            git log --pretty=format:"- %s (%h)" $LAST_TAG..HEAD >> changelog.md
+            echo "" >> changelog.md
+            git log --pretty=format:"- %s (%h)" --no-merges $LAST_TAG..HEAD >> changelog.md
           else
             echo "### Recent commits:" >> changelog.md
-            git log --pretty=format:"- %s (%h)" -10 >> changelog.md
+            echo "" >> changelog.md
+            git log --pretty=format:"- %s (%h)" --no-merges -10 >> changelog.md
           fi
           
           echo "" >> changelog.md
+          
+          # Check if CHANGELOG.md contains information for current version
+          VERSION_NO_V="${CURRENT_TAG#v}"
+          if [ -f "CHANGELOG.md" ]; then
+            echo "Checking CHANGELOG.md for version $VERSION_NO_V information..."
+            
+            # Extract changelog section for current version
+            CHANGELOG_SECTION=$(awk "/^## \[$VERSION_NO_V\]/ {found=1; next} /^## \[/ && found {exit} found {print}" CHANGELOG.md 2>/dev/null || echo "")
+            
+            if [ -n "$CHANGELOG_SECTION" ]; then
+              echo "Found changelog information for version $VERSION_NO_V"
+              echo "" >> changelog.md
+              echo "## Release Notes" >> changelog.md
+              echo "" >> changelog.md
+              echo "$CHANGELOG_SECTION" >> changelog.md
+              echo "" >> changelog.md
+            else
+              echo "No specific changelog information found for version $VERSION_NO_V"
+            fi
+          fi
           echo "## Installation" >> changelog.md
           echo "" >> changelog.md
           echo "Download the appropriate binary for your platform from the assets below." >> changelog.md

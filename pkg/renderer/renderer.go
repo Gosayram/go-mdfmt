@@ -191,6 +191,7 @@ func (r *MarkdownRenderer) fixBrokenLinks(text string) string {
 	multiBreakPattern := `\[([^\]]*(?:\n[^\]]*)*)\]\(([^)]*)\)`
 	re2 := regexp.MustCompile(multiBreakPattern)
 
+	// Replace multi-break links with fixed ones
 	fixed = re2.ReplaceAllStringFunc(fixed, func(match string) string {
 		parts := re2.FindStringSubmatch(match)
 		if len(parts) == multiBreakPartsCount {
