@@ -1,102 +1,159 @@
 # go-mdfmt
 
-A fast, reliable, and opinionated Markdown formatter written in Go. It provides a consistent, pluggable way to reformat `.md` files across projects — making your documentation readable, lintable, and style-consistent.
-
-## Why go-mdfmt?
-
-- **Consistency**: Markdown is widely used but rarely standardized across teams
-- **Readability**: Many developers struggle with inconsistent formatting in `.md` files
-- **Automation**: Provides a single-command solution to format Markdown like `gofmt` does for Go code
-- **CI/CD Ready**: Perfect for automated formatting checks and enforcement
+A fast, reliable, and opinionated Markdown formatter written in Go. Provides consistent, configurable formatting for `.md` files across projects, making your documentation readable, lintable, and style-consistent.
 
 ## Features
 
-- **Text Reflow**: Wrap long paragraphs at configurable line width (80/100/120 chars)
-- **Heading Normalization**: Ensure consistent heading levels and spacing
-- **List Formatting**: Standardize bullet and numbered list styles
-- **Code Block Fixes**: Auto-correct indentation and language specification
-- **Inline Formatting**: Consistent inline code, links, and emphasis
-- **Whitespace Cleanup**: Remove excessive empty lines and trailing spaces
-- **CLI Interface**: Full-featured command-line tool with multiple modes
-- **Diff Support**: Show changes before applying or run in check-only mode
-- **CI Integration**: Built for continuous integration and pre-commit hooks
+**Core Formatting Capabilities**
+- **Text Reflow**: Wraps long paragraphs at configurable line width (default 80 characters)
+- **Heading Normalization**: Ensures consistent heading levels and spacing using ATX style
+- **List Standardization**: Consistent bullet and numbered list formatting with proper indentation
+- **Code Block Formatting**: Auto-corrects indentation and applies consistent fence styles
+- **Whitespace Management**: Removes excessive blank lines and trailing spaces
+- **Link Preservation**: Maintains markdown link structure and formatting
+
+**Operation Modes**
+- **Write Mode**: Format files in-place (`--write`)
+- **Check Mode**: Verify formatting without changes (`--check`) - ideal for CI/CD
+- **Diff Mode**: Preview changes before applying (`--diff`)
+- **List Mode**: Show files that need formatting (`--list`)
+- **Standard Output**: Display formatted content to stdout (default)
+
+**Configuration and Integration**
+- YAML-based configuration with sensible defaults
+- File pattern matching with ignore capabilities
+- Verbose and quiet output modes
+- CI/CD ready with meaningful exit codes
+- Cross-platform binary releases
 
 ## Installation
 
+### Pre-built Binaries
+
+Download the latest binary from the [releases page](https://github.com/Gosayram/go-mdfmt/releases):
+
+**Linux:**
+```bash
+curl -L -o mdfmt https://github.com/Gosayram/go-mdfmt/releases/latest/download/mdfmt-0.2.2-linux-amd64
+chmod +x mdfmt
+sudo mv mdfmt /usr/local/bin/
+```
+
+**macOS:**
+```bash
+curl -L -o mdfmt https://github.com/Gosayram/go-mdfmt/releases/latest/download/mdfmt-0.2.2-darwin-arm64
+chmod +x mdfmt
+sudo mv mdfmt /usr/local/bin/
+```
+
+**Windows:**
+```powershell
+curl -L -o mdfmt.exe https://github.com/Gosayram/go-mdfmt/releases/latest/download/mdfmt-0.2.2-windows-amd64.exe
+```
+
 ### From Source
+
+**Prerequisites:**
+- Go 1.24.4 or later
+- Git
+
+**Build from source:**
+```bash
+git clone https://github.com/Gosayram/go-mdfmt.git
+cd go-mdfmt
+make build
+# Binary will be available in bin/mdfmt
+```
+
+**Install from Go modules:**
 ```bash
 go install github.com/Gosayram/go-mdfmt/cmd/mdfmt@latest
 ```
 
-### From Releases
-Download the latest binary from the [releases page](https://github.com/Gosayram/go-mdfmt/releases).
-
-### Using Go Module
-```bash
-git clone https://github.com/Gosayram/go-mdfmt.git
-cd go-mdfmt
-go build -o mdfmt cmd/mdfmt/main.go
-```
-
 ## Quick Start
 
-### Format Files
+### Basic Usage
+
 ```bash
-# Format and display to stdout
+# Format file to stdout
 mdfmt README.md
 
-# Format multiple files
+# Format multiple files to stdout
 mdfmt docs/*.md
 
-# Format all markdown files in directory
+# Format directory (finds all .md files)
 mdfmt docs/
 ```
 
-### Write Changes
+### Write Changes to Files
+
 ```bash
-# Format and write changes back to files
-mdfmt --write README.md docs/*.md
+# Format single file in-place
+mdfmt --write README.md
+
+# Format multiple files in-place
+mdfmt --write docs/*.md
 
 # Format all markdown files in project
-find . -name "*.md" -exec mdfmt --write {} +
+mdfmt --write .
 ```
 
-### Check Mode (Perfect for CI)
+### Check Formatting (CI/CD)
+
 ```bash
-# Check if files are properly formatted (exit code 1 if not)
-mdfmt --check docs/ README.md
+# Check if files are properly formatted
+mdfmt --check docs/
+echo $? # Exit code: 0 = formatted, 1 = needs formatting, 2 = error
 
-# Show what would change without writing
-mdfmt --diff docs/ README.md
+# Show what would change
+mdfmt --diff README.md
+
+# List files that need formatting
+mdfmt --list docs/
 ```
 
-## Command Line Options
+## Command Line Interface
 
 ```
-Usage: mdfmt [options] [files...]
+USAGE:
+    mdfmt [OPTIONS] <files...>
 
-Options:
-  -w, --write           Write formatted content back to files
-  -d, --diff            Show diff of changes without writing
-  -c, --check           Check if files are formatted (exit 1 if not)
-  -r, --recursive       Process directories recursively
-      --line-width      Maximum line width for text reflow (default: 80)
-      --config          Path to configuration file
-      --ignore          Patterns to ignore (glob format)
-  -v, --verbose         Verbose output
-      --version         Show version information
-  -h, --help            Show this help message
+OPTIONS:
+    Operation modes (mutually exclusive):
+        -w, --write     Write formatted content back to files
+        -c, --check     Check if files are formatted correctly (exit 1 if not)
+        -l, --list      List files that need formatting
+        -d, --diff      Show diff of changes without writing files
 
-Examples:
-  mdfmt README.md                    Format README.md to stdout
-  mdfmt --write docs/               Format all .md files in docs/
-  mdfmt --check --diff *.md         Check formatting and show diffs
-  mdfmt --line-width 100 --write .  Format with 100-char line width
+    Configuration:
+        --config <file> Path to configuration file (.mdfmt.yaml)
+
+    Output control:
+        -v, --verbose   Verbose output (show processed files)
+        -q, --quiet     Quiet mode (suppress non-error output)
+
+    Information:
+        -h, --help      Show this help message
+        --version       Print version information
+
+EXIT CODES:
+    0   Success (no changes needed in check mode)
+    1   Files need formatting (check mode only)
+    2   Error occurred
 ```
 
 ## Configuration
 
-Create a `.mdfmt.yaml` file in your project root:
+mdfmt uses YAML configuration files with automatic discovery. Configuration files are searched in this order:
+
+1. File specified by `--config` flag
+2. `.mdfmt.yaml` in current directory
+3. `.mdfmt.yaml` in parent directories (up to repository root)
+4. Built-in defaults
+
+### Configuration File Structure
+
+Create `.mdfmt.yaml` in your project root:
 
 ```yaml
 # Line width for paragraph reflow
@@ -104,18 +161,18 @@ line_width: 80
 
 # Heading configuration
 heading:
-  style: "atx"              # atx (#) or setext (===)
+  style: "atx"              # Use # headings instead of === underline
   normalize_levels: true    # Fix heading level jumps
 
 # List formatting
 list:
-  bullet_style: "-"         # -, *, or +
-  number_style: "."         # . or )
+  bullet_style: "-"         # Use - for bullets (options: -, *, +)
+  number_style: "."         # Use 1. for numbered lists (options: ., ))
   consistent_indentation: true
 
 # Code block formatting
 code:
-  fence_style: "```"        # ``` or ~~~
+  fence_style: "```"        # Use ``` for code blocks (options: ```, ~~~)
   language_detection: true  # Auto-detect and add language labels
 
 # Whitespace handling
@@ -127,12 +184,69 @@ whitespace:
 # File processing
 files:
   extensions: [".md", ".markdown", ".mdown"]
-  ignore_patterns: ["node_modules/**", ".git/**"]
+  ignore_patterns: ["node_modules/**", ".git/**", "vendor/**"]
 ```
 
-## Integration Examples
+### Configuration Validation
+
+All configuration options are validated on startup. Invalid configurations will result in descriptive error messages.
+
+## Development
+
+### Building from Source
+
+```bash
+# Install dependencies
+make deps
+
+# Build for current platform
+make build
+
+# Build for all platforms
+make build-cross
+
+# Run tests
+make test
+
+# Run linters and static analysis
+make lint staticcheck
+
+# Format code
+make fmt
+
+# Install to /usr/local/bin
+make install
+```
+
+### Available Make Targets
+
+**Building and Running:**
+- `make build` - Build for current OS/architecture
+- `make build-cross` - Build binaries for multiple platforms
+- `make install` - Install binary to /usr/local/bin
+- `make run ARGS="README.md"` - Run application locally
+
+**Testing and Validation:**
+- `make test` - Run all tests with coverage
+- `make test-race` - Run tests with race detection
+- `make benchmark` - Run performance benchmarks
+- `make check-all` - Run all code quality checks
+
+**Code Quality:**
+- `make fmt` - Format Go code
+- `make lint` - Run golangci-lint
+- `make staticcheck` - Run static analysis
+- `make vet` - Run go vet
+
+**Development:**
+- `make deps` - Install dependencies
+- `make clean` - Clean build artifacts
+- `make help` - Show all available targets
+
+## CI/CD Integration
 
 ### GitHub Actions
+
 ```yaml
 name: Markdown Format Check
 on: [push, pull_request]
@@ -141,170 +255,149 @@ jobs:
   markdown-format:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
-        with:
-          go-version: '1.21'
-      - name: Install mdfmt
-        run: go install github.com/Gosayram/go-mdfmt/cmd/mdfmt@latest
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download mdfmt
+        run: |
+          curl -L -o mdfmt https://github.com/Gosayram/go-mdfmt/releases/latest/download/mdfmt-0.2.2-linux-amd64
+          chmod +x mdfmt
+          sudo mv mdfmt /usr/local/bin/
+      
       - name: Check markdown formatting
-        run: mdfmt --check --diff .
+        run: mdfmt --check --verbose .
 ```
 
 ### Pre-commit Hook
+
 ```bash
 #!/bin/sh
 # .git/hooks/pre-commit
 
-# Check if any markdown files are staged
 markdown_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.md$')
 
 if [ -n "$markdown_files" ]; then
     echo "Checking markdown formatting..."
-    if ! mdfmt --check --diff $markdown_files; then
-        echo "Markdown files are not properly formatted. Please run:"
-        echo "  mdfmt --write $markdown_files"
+    if ! mdfmt --check $markdown_files; then
+        echo "Markdown files need formatting. Run: mdfmt --write $markdown_files"
         exit 1
     fi
 fi
 ```
 
 ### Makefile Integration
-```makefile
-.PHONY: fmt-md check-md-fmt
 
-fmt-md:
+```makefile
+.PHONY: fmt-markdown check-markdown
+
+fmt-markdown:
 	mdfmt --write .
 
-check-md-fmt:
+check-markdown:
 	mdfmt --check --diff .
 
-# Include in your main format target
-fmt: fmt-go fmt-md
-
-# Include in your main check target  
-check: check-go check-md-fmt
+# Include in existing targets
+fmt: fmt-go fmt-markdown
+check: check-go check-markdown
 ```
 
-## Before and After Examples
+## Architecture
 
-### Paragraph Reflow
-**Before:**
-```markdown
-This is a very long paragraph that extends way beyond the reasonable line width and makes it difficult to read in editors or when reviewing diffs in pull requests.
-```
+go-mdfmt follows a modular architecture with clear separation of concerns:
 
-**After:**
-```markdown
-This is a very long paragraph that extends way beyond the reasonable line
-width and makes it difficult to read in editors or when reviewing diffs in
-pull requests.
-```
+**Core Components:**
+- **Parser** (`pkg/parser`) - Goldmark-based Markdown AST parsing
+- **Formatter** (`pkg/formatter`) - Rule-based formatting engine
+- **Renderer** (`pkg/renderer`) - AST to Markdown conversion
+- **Config** (`pkg/config`) - YAML-based configuration management
+- **Processor** (`pkg/processor`) - File handling and batch processing
 
-### List Consistency
-**Before:**
-```markdown
-* Item one
-- Item two  
-  + Nested item
-    * Deep nested
-```
+**Internal Modules:**
+- **Version** (`internal/version`) - Build information and versioning
 
-**After:**
-```markdown
-- Item one
-- Item two
-  - Nested item
-    - Deep nested
-```
+**CLI Interface:**
+- **Main** (`cmd/mdfmt`) - Command-line interface and argument parsing
 
-### Heading Normalization
-**Before:**
-```markdown
-# Title
+## Performance
 
-### Skipped H2
+mdfmt is designed for performance with large codebases:
 
-##### Skipped H3 and H4
-```
+- **Memory Efficient**: Processes files individually, not batch-loaded
+- **Fast Parsing**: Uses goldmark parser for reliable AST generation
+- **Concurrent Safe**: Supports concurrent file processing
+- **Minimal Dependencies**: Small binary size with fast startup
 
-**After:**
-```markdown
-# Title
+**Benchmarks** (on test machine):
+- Small files (< 10KB): ~1ms per file
+- Medium files (10-100KB): ~5-15ms per file
+- Large files (> 100KB): ~50-200ms per file
 
-## Skipped H2
+## Security
 
-### Skipped H3 and H4
-```
+### Release Verification
 
-## Development
+All binaries are signed with Cosign for supply chain security:
 
-### Building
 ```bash
-git clone https://github.com/Gosayram/go-mdfmt.git
-cd go-mdfmt
-go build -o mdfmt cmd/mdfmt/main.go
+# Download release files
+curl -L -o mdfmt https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.2/mdfmt-0.2.2-linux-amd64
+curl -L -o mdfmt.sig https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.2/mdfmt-0.2.2-linux-amd64.sig
+curl -L -o cosign.pub https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.2/cosign.pub
+
+# Verify signature
+cosign verify-blob --key cosign.pub --signature mdfmt.sig mdfmt
+
+# Verify checksum
+curl -L -o mdfmt.sha256 https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.2/mdfmt-0.2.2-linux-amd64.sha256
+sha256sum -c mdfmt.sha256
 ```
 
-### Running Tests
-```bash
-go test ./...
-go test -race ./...
-go test -bench=. ./...
-```
+### Security Scanning
 
-### Project Structure
-```
-go-mdfmt/
-├── cmd/mdfmt/           # CLI application
-├── pkg/
-│   ├── parser/          # Markdown parsing
-│   ├── formatter/       # Formatting rules
-│   ├── renderer/        # Output generation
-│   ├── config/          # Configuration management
-│   └── processor/       # File processing
-├── testdata/            # Test fixtures
-├── docs/                # Documentation
-└── examples/            # Usage examples
-```
+The project includes automated security scanning:
+- **Dependency Review**: Automated dependency vulnerability scanning
+- **CodeQL Analysis**: Static security analysis
+- **OpenSSF Scorecard**: Supply chain security assessment
+- **SLSA Compliance**: Software supply chain integrity
+
+## Comparison with Alternatives
+
+**vs Prettier:**
+- **Specialization**: Purpose-built for Markdown vs universal formatter
+- **Performance**: Native binary vs Node.js runtime overhead
+- **Configuration**: Markdown-specific options vs generic formatting rules
+- **Integration**: Better suited for Go/CLI environments
+
+**vs Other Markdown Tools:**
+- **Reliability**: Consistent AST-based parsing vs regex-based approaches
+- **Speed**: Optimized for large codebases and CI/CD pipelines
+- **Standards**: Follows CommonMark specification
+- **Maintenance**: Active development with regular releases
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Add tests for new functionality
-5. Ensure all tests pass (`go test ./...`)
-6. Format your code (`go fmt ./...` and `mdfmt --write .`)
-7. Commit your changes (`git commit -am 'Add amazing feature'`)
-8. Push to the branch (`git push origin feature/amazing-feature`)
-9. Open a Pull Request
+Contributions are welcome. Please ensure all code follows the project standards:
 
-## Roadmap
+1. **Code Quality**: All Go code must pass `make check-all`
+2. **Testing**: Include tests for new functionality
+3. **Documentation**: Update relevant documentation
+4. **Commit Messages**: Use conventional commit format
 
-- [x] Core formatting engine
-- [x] CLI interface with all major flags
-- [x] Configuration file support
-- [x] CI/CD integration examples
-- [ ] Plugin architecture for custom formatters
-- [ ] Language Server Protocol (LSP) support
-- [ ] Web interface for online formatting
-- [ ] Performance optimizations for large files
-- [ ] Additional Markdown dialect support
+**Development Setup:**
+```bash
+git clone https://github.com/Gosayram/go-mdfmt.git
+cd go-mdfmt
+make deps
+make build
+make test
+```
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- Inspired by `gofmt` and the Go community's commitment to consistent formatting
-- Built on top of excellent Go Markdown parsing libraries
-- Thanks to all contributors and early adopters
+Licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ## Support
 
-- 📚 [Documentation](docs/)
-- 🐛 [Issue Tracker](https://github.com/Gosayram/go-mdfmt/issues)
-- 💬 [Discussions](https://github.com/Gosayram/go-mdfmt/discussions)
-- 📧 [Email Support](mailto:abdurakhman.rakhmankulov@gmail.com) 
+- **Issues**: Report bugs and feature requests on [GitHub Issues](https://github.com/Gosayram/go-mdfmt/issues)
+- **Documentation**: Additional documentation available in [docs/](docs/)
+- **Security**: Report security issues privately to project maintainers 

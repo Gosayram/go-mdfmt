@@ -151,7 +151,6 @@ jobs:
           # Sign the binary using private key with password
           cosign sign-blob --yes \
             --key cosign.key \
-            --output-certificate ${{ env.BINARY_NAME }}.pem \
             --output-signature ${{ env.BINARY_NAME }}.sig \
             ${{ env.BINARY_NAME }}
           
@@ -166,7 +165,7 @@ jobs:
           cat > ${{ env.BINARY_NAME }}.verify << EOF
           # Verify this binary with Cosign
           # 1. Install cosign: https://docs.sigstore.dev/cosign/installation/
-          # 2. Get the public key from: https://github.com/${{ github.repository }}/releases
+          # 2. Download the public key: curl -L -o cosign.pub https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/cosign.pub
           # 3. Run verification:
           cosign verify-blob \\
             --key cosign.pub \\
@@ -184,7 +183,6 @@ jobs:
           path: |
             ${{ env.BINARY_NAME }}
             ${{ env.BINARY_NAME }}.sig
-            ${{ env.BINARY_NAME }}.pem
             ${{ env.BINARY_NAME }}.sha256
             ${{ env.BINARY_NAME }}.sha512
             ${{ env.BINARY_NAME }}.verify
@@ -286,10 +284,8 @@ jobs:
           echo "" >> changelog.md
           echo "# Verify Cosign signature (requires cosign CLI)" >> changelog.md
           echo "cosign verify-blob \\\\" >> changelog.md
-          echo "  --certificate mdfmt-*-linux-amd64.pem \\\\" >> changelog.md
+          echo "  --key cosign.pub \\\\" >> changelog.md
           echo "  --signature mdfmt-*-linux-amd64.sig \\\\" >> changelog.md
-          echo "  --certificate-identity-regexp \"https://github.com/${{ github.repository }}/\" \\\\" >> changelog.md
-          echo "  --certificate-oidc-issuer \"https://token.actions.githubusercontent.com\" \\\\" >> changelog.md
           echo "  mdfmt-*-linux-amd64" >> changelog.md
           echo '```' >> changelog.md
 
