@@ -205,27 +205,26 @@ jobs:
             CURRENT_FILE_VERSION=$(cat .release-version | tr -d '\n')
           fi
           
-          NEW_FILE_VERSION="${NEW_VERSION#v}"
+          NEW_FILE_VERSION="${{ env.NEW_VERSION }}"
+          NEW_FILE_VERSION="${NEW_FILE_VERSION#v}"
           
-          # Check if version actually changed
-          if [ "$CURRENT_FILE_VERSION" = "$NEW_FILE_VERSION" ]; then
-            echo "Version $NEW_FILE_VERSION is already in .release-version file, no update needed"
-            echo "NEEDS_VERSION_UPDATE=false" >> $GITHUB_ENV
+          # Always update version file and create tag
+          echo "Updating .release-version from '$CURRENT_FILE_VERSION' to '$NEW_FILE_VERSION'"
+          echo "$NEW_FILE_VERSION" > .release-version
+          
+          # Check if there are changes to commit
+          if git diff --quiet .release-version; then
+            echo "No changes in .release-version file"
           else
-            echo "Updating .release-version from '$CURRENT_FILE_VERSION' to '$NEW_FILE_VERSION'"
-            echo "$NEW_FILE_VERSION" > .release-version
-            
             # Commit and push the updated version file
             git add .release-version
             git commit -m "chore: update version to $NEW_FILE_VERSION [skip-tag]"
             git push origin main
-            
             echo "Updated .release-version to: $NEW_FILE_VERSION"
-            echo "NEEDS_VERSION_UPDATE=true" >> $GITHUB_ENV
           fi
 
       - name: Create and push tag
-        if: env.TAG_EXISTS == 'false' && env.SKIP_TAG == 'false' && env.NEEDS_VERSION_UPDATE != 'false'
+        if: env.TAG_EXISTS == 'false' && env.SKIP_TAG == 'false'
         run: |
           # Create annotated tag with commit info
           COMMIT_MSG=$(git log -1 --pretty=format:"%s")
@@ -237,19 +236,17 @@ jobs:
           echo "Created and pushed tag: ${{ env.NEW_VERSION }}"
 
       - name: Tag created successfully
-        if: env.TAG_EXISTS == 'false' && env.SKIP_TAG == 'false' && env.NEEDS_VERSION_UPDATE != 'false'
+        if: env.TAG_EXISTS == 'false' && env.SKIP_TAG == 'false'
         run: |
           echo "Tag ${{ env.NEW_VERSION }} created successfully"
           echo "Release workflow will be triggered automatically"
           echo "Binaries will be available in ~5-10 minutes"
 
       - name: No changes needed
-        if: env.TAG_EXISTS == 'true' || env.SKIP_TAG == 'true' || env.NEEDS_VERSION_UPDATE == 'false'
+        if: env.TAG_EXISTS == 'true' || env.SKIP_TAG == 'true'
         run: |
           if [ "${{ env.SKIP_TAG }}" = "true" ]; then
             echo "Skipping tag creation due to [skip-tag] flag"
           elif [ "${{ env.TAG_EXISTS }}" = "true" ]; then
             echo "Tag ${{ env.NEW_VERSION }} already exists"
-          elif [ "${{ env.NEEDS_VERSION_UPDATE }}" = "false" ]; then
-            echo "Version ${{ env.NEW_VERSION }} is already current, no tag needed"
           fi 

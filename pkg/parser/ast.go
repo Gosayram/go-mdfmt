@@ -9,6 +9,7 @@ import (
 // NodeType represents the type of a node in the AST
 type NodeType int
 
+// NodeType constants
 const (
 	// NodeDocument represents a document node containing the entire markdown structure
 	NodeDocument NodeType = iota
