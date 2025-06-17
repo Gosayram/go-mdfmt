@@ -1,17 +1,17 @@
 package parser
 
-// Parser interface defines methods for parsing Markdown content
+// Parser interface defines methods for parsing Markdown content and validating the parser
 type Parser interface {
 	Parse(content []byte) (*Document, error)
 	Validate() error
 }
 
-// New creates a new parser instance
+// New creates a new parser instance using the default parser implementation
 func New() Parser {
 	return NewGoldmarkParser()
 }
 
-// DefaultParser returns the default parser implementation
+// DefaultParser returns the default parser implementation using the Goldmark parser
 func DefaultParser() Parser {
 	return NewGoldmarkParser()
 }

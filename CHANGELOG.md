@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4] - 2025-01-18
+
+### Fixed
+- Fixed auto-tag workflow to create lightweight tags instead of annotated tags for better GitHub UI compatibility
+- Resolved issue where new tags were not visible in GitHub branch/tag selector
+- Corrected tag creation logic that was blocking tag generation when version already existed in `.release-version` file
+- Enhanced tag creation process with proper git configuration and improved logging
+
+### Changed
+- Simplified auto-tag workflow conditions to ensure reliable tag creation
+- Improved tag creation debugging with commit SHA and message logging
+- Updated tag creation to use lightweight tags for better GitHub integration
+
 ## [0.2.2] - 2025-01-18
 
 ### Fixed

@@ -226,14 +226,23 @@ jobs:
       - name: Create and push tag
         if: env.TAG_EXISTS == 'false' && env.SKIP_TAG == 'false'
         run: |
-          # Create annotated tag with commit info
-          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
-          git tag -a "${{ env.NEW_VERSION }}" -m "Release ${{ env.NEW_VERSION }}: $COMMIT_MSG"
+          # Configure git for proper tag creation
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Push tag
+          # Get latest commit info for tag message
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+          COMMIT_SHA=$(git rev-parse HEAD)
+          
+          # Create lightweight tag (better for GitHub UI)
+          git tag "${{ env.NEW_VERSION }}"
+          
+          # Push tag to origin
           git push origin "${{ env.NEW_VERSION }}"
           
-          echo "Created and pushed tag: ${{ env.NEW_VERSION }}"
+          echo "Created and pushed lightweight tag: ${{ env.NEW_VERSION }}"
+          echo "Tag points to commit: $COMMIT_SHA"
+          echo "Latest commit: $COMMIT_MSG"
 
       - name: Tag created successfully
         if: env.TAG_EXISTS == 'false' && env.SKIP_TAG == 'false'
