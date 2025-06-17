@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.6] - 2025-01-18
+## [0.2.5] - 2025-01-18
 
 ### Fixed
 - Corrected semantic versioning logic in auto-tag workflow to implement custom 9-limit versioning
@@ -23,19 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Custom versioning logic with examples: 0.1.9 → 0.2.0, 0.9.9 → 1.0.0
 - Automatic CHANGELOG.md extraction for release notes generation
 - Better debugging and logging in version calculation process
-
-## [0.2.5] - 2025-01-18
-
-### Fixed
-- Corrected changelog generation in release workflow to properly identify previous tag
-- Fixed release notes showing incorrect "commits since" information
-- Improved tag sorting logic to use semantic versioning for accurate previous tag detection
-- Enhanced changelog formatting with better commit message filtering
-
-### Changed
-- Updated release workflow to exclude merge commits from changelog
-- Improved changelog generation with proper tag comparison logic
-- Added current tag logging for better debugging in release process
 
 ## [0.2.4] - 2025-01-18
 

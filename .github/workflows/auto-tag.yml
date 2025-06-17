@@ -97,11 +97,16 @@ jobs:
             BUMP_TYPE="${{ github.event.inputs.force_bump }}"
             echo "Using manual force bump type: $BUMP_TYPE"
           else
-            # Check for breaking changes or major features in commit messages
-            if echo "$COMMITS" | grep -i -E "(BREAKING|major|breaking change)" > /dev/null; then
+            # Only check for explicit version bump indicators in commit messages
+            # Use very specific patterns to avoid false positives
+            if echo "$COMMITS" | grep -i -E "(\[BREAKING\]|BREAKING CHANGE|major:)" > /dev/null; then
               BUMP_TYPE="major"
-            elif echo "$COMMITS" | grep -i -E "(feat|feature|minor)" > /dev/null; then
+              echo "Detected major version indicator in commits"
+            elif echo "$COMMITS" | grep -i -E "(\[MINOR\]|minor:)" > /dev/null; then
               BUMP_TYPE="minor"
+              echo "Detected minor version indicator in commits"
+            else
+              echo "No explicit version indicators found, defaulting to patch bump"
             fi
           fi
           

@@ -356,7 +356,7 @@ func (r *MarkdownRenderer) tokenizeWithLinks(text string) []string {
 			tokens = append(tokens, words...)
 		}
 
-		// Add the link as a single token
+		// Add the link as a single token (e.g. [link](url))
 		link := text[start:end]
 		tokens = append(tokens, link)
 

@@ -340,15 +340,15 @@ All binaries are signed with Cosign for supply chain security:
 
 ```bash
 # Download release files
-curl -L -o mdfmt https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.6/mdfmt-0.2.6-linux-amd64
-curl -L -o mdfmt.sig https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.6/mdfmt-0.2.6-linux-amd64.sig
-curl -L -o cosign.pub https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.6/cosign.pub
+curl -L -o mdfmt https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.5/mdfmt-0.2.6-linux-amd64
+curl -L -o mdfmt.sig https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.5/mdfmt-0.2.6-linux-amd64.sig
+curl -L -o cosign.pub https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.5/cosign.pub
 
 # Verify signature
 cosign verify-blob --key cosign.pub --signature mdfmt.sig mdfmt
 
 # Verify checksum
-curl -L -o mdfmt.sha256 https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.6/mdfmt-0.2.6-linux-amd64.sha256
+curl -L -o mdfmt.sha256 https://github.com/Gosayram/go-mdfmt/releases/download/v0.2.5/mdfmt-0.2.6-linux-amd64.sha256
 sha256sum -c mdfmt.sha256
 ```
 
