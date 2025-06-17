@@ -11,6 +11,7 @@ import (
 	"github.com/Gosayram/go-mdfmt/pkg/config"
 )
 
+// TestNewFileProcessor tests the NewFileProcessor function
 func TestNewFileProcessor(t *testing.T) {
 	cfg := config.Default()
 	processor := NewFileProcessor(cfg, true)
@@ -23,6 +24,7 @@ func TestNewFileProcessor(t *testing.T) {
 	}
 }
 
+// TestIsMarkdownFile tests the isMarkdownFile function
 func TestIsMarkdownFile(t *testing.T) {
 	cfg := config.Default()
 	processor := NewFileProcessor(cfg, false)
@@ -51,6 +53,7 @@ func TestIsMarkdownFile(t *testing.T) {
 	}
 }
 
+// TestShouldIgnoreFile tests the shouldIgnoreFile function
 func TestShouldIgnoreFile(t *testing.T) {
 	cfg := config.Default()
 	processor := NewFileProcessor(cfg, false)
@@ -78,6 +81,7 @@ func TestShouldIgnoreFile(t *testing.T) {
 	}
 }
 
+// TestFindFiles tests the FindFiles function
 func TestFindFiles(t *testing.T) {
 	// Create a temporary directory structure for testing
 	tmpDir, err := os.MkdirTemp("", "mdfmt-test")
@@ -134,6 +138,7 @@ func TestFindFiles(t *testing.T) {
 	}
 }
 
+// TestReadWriteFile tests the readFile and writeFile functions
 func TestReadWriteFile(t *testing.T) {
 	fp := NewFileProcessor(config.Default(), false)
 
@@ -165,6 +170,7 @@ func TestReadWriteFile(t *testing.T) {
 	}
 }
 
+// TestBackupFile tests the BackupFile function
 func TestBackupFile(t *testing.T) {
 	fp := NewFileProcessor(config.Default(), false)
 
@@ -200,6 +206,7 @@ func TestBackupFile(t *testing.T) {
 	}
 }
 
+// TestProcessFiles tests the ProcessFiles function
 func TestProcessFiles(t *testing.T) {
 	cfg := config.Default()
 	processor := NewFileProcessor(cfg, false)
@@ -247,6 +254,7 @@ func TestProcessFiles(t *testing.T) {
 	}
 }
 
+// TestMinFunction tests the min function
 func TestMinFunction(t *testing.T) {
 	tests := []struct {
 		a, b, expected int
@@ -266,7 +274,7 @@ func TestMinFunction(t *testing.T) {
 	}
 }
 
-// Benchmark tests
+// BenchmarkFileProcessor_FindFiles benchmarks the FindFiles function
 func BenchmarkFileProcessor_FindFiles(b *testing.B) {
 	cfg := config.Default()
 	processor := NewFileProcessor(cfg, false)
@@ -306,6 +314,7 @@ func BenchmarkFileProcessor_FindFiles(b *testing.B) {
 	}
 }
 
+// BenchmarkFileProcessor_FindFilesLargeProject benchmarks the FindFiles function with a large project
 func BenchmarkFileProcessor_FindFilesLargeProject(b *testing.B) {
 	cfg := config.Default()
 	processor := NewFileProcessor(cfg, false)
@@ -343,6 +352,7 @@ func BenchmarkFileProcessor_FindFilesLargeProject(b *testing.B) {
 	}
 }
 
+// BenchmarkFileProcessor_FileOperations benchmarks the file operations
 func BenchmarkFileProcessor_FileOperations(b *testing.B) {
 	cfg := config.Default()
 	processor := NewFileProcessor(cfg, false)

@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2025-01-18
+
+### Fixed
+- Corrected GitHub Actions workflow configurations for improved reliability
+- Enhanced security scanning workflows with proper SARIF upload handling
+- Fixed Docker build triggers and multi-platform compilation matrix
+
+### Changed
+- Completely rewrote CI/CD documentation with comprehensive workflow descriptions
+- Updated security implementation documentation with detailed procedures
+- Enhanced release process documentation with verification instructions
+- Improved auto-tag workflow with better version management logic
+
+### Documentation
+- Updated `docs/CI_CD.md` with detailed workflow architecture descriptions
+- Added comprehensive security implementation documentation
+- Enhanced troubleshooting section with common issues and solutions
+- Documented dependency management and container strategy
+
+## [0.2.1] - 2025-01-16
+
+### Fixed
+- Corrected Dockerfile FROM syntax for proper Docker build functionality
+- Updated version management to 0.2.1 with skip-tag functionality
+
+### Changed
+- Enhanced CI testing workflows with improved comments and documentation
+- Minor workflow optimizations for better reliability
+
 ## [0.1.0] - 2025-01-15
 
 ### Added

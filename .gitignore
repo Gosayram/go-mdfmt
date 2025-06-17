@@ -91,6 +91,15 @@ coverage.html
 benchmark-report.md
 .release-version
 
-# Cosign files
-cosign.key
-cosign.pub
+# Md-binaries
+mdfmt*
+
+# Certificates
+*.crt
+*.pem
+*.key
+*.pub
+*.cer
+*.p12
+*.pfx
+*.p1
